@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../../../services/database_service.dart';
@@ -29,6 +30,8 @@ final homeStatsProvider = FutureProvider<HomeStats>((ref) async {
   final screenshotCount = allScreenshots.length;
   final expenseCount = allExpenses.length;
   final unprocessedCount = allScreenshots.where((s) => !s.isProcessed).length;
+
+  debugPrint('[HomeProvider] screenshotCount=$screenshotCount expenseCount=$expenseCount unprocessedCount=$unprocessedCount');
 
   final expenseRepo = ref.read(expenseRepositoryProvider);
   final totalExpenses = await expenseRepo.getTotalExpenses();

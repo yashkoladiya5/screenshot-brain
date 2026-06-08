@@ -11,23 +11,42 @@ class PermissionScreen extends StatefulWidget {
 
 class _PermissionScreenState extends State<PermissionScreen> {
   bool _isRequesting = false;
+  bool _isPermanentlyDenied = false;
 
   Future<void> _requestPermission() async {
+    debugPrint('[PermissionScreen] _requestPermission() called');
     setState(() => _isRequesting = true);
     final granted = await PermissionService.requestGalleryPermission();
+    debugPrint('[PermissionScreen] permission result: granted=$granted');
     if (!mounted) return;
-    setState(() => _isRequesting = false);
+    setState(() {
+      _isRequesting = false;
+      _isPermanentlyDenied = !granted;
+    });
     if (granted) {
+      debugPrint('[PermissionScreen] navigating to /home');
       context.go('/home');
     } else {
+      debugPrint('[PermissionScreen] permission not granted, showing snackbar');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permission denied. Please grant access in settings.')),
+        SnackBar(
+          content: Text(
+            _isPermanentlyDenied
+                ? 'Permission permanently denied. Please enable from Settings.'
+                : 'Permission denied. Please grant access in settings.',
+          ),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: () => PermissionService.openSettings(),
+          ),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[PermissionScreen] build() - _isPermanentlyDenied=$_isPermanentlyDenied');
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -42,20 +61,22 @@ class _PermissionScreenState extends State<PermissionScreen> {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Icon(
-                  Icons.photo_library_outlined,
+                  _isPermanentlyDenied ? Icons.lock_outline : Icons.photo_library_outlined,
                   size: 80,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 32),
               Text(
-                'Access Your Screenshots',
+                _isPermanentlyDenied ? 'Permission Required' : 'Access Your Screenshots',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
-                'Screenshot Brain needs access to your photo gallery to scan and organize your screenshots. All processing happens on your device.',
+                _isPermanentlyDenied
+                    ? 'Gallery permission was permanently denied. Please tap "Open Settings" to enable it manually.'
+                    : 'Screenshot Brain needs access to your photo gallery to scan and organize your screenshots. All processing happens on your device.',
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
@@ -70,12 +91,13 @@ class _PermissionScreenState extends State<PermissionScreen> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Grant Permission'),
+                      : Text(_isPermanentlyDenied ? 'Try Again' : 'Grant Permission'),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () {
+                  debugPrint('[PermissionScreen] opening app settings');
                   PermissionService.openSettings();
                 },
                 child: const Text('Open Settings'),

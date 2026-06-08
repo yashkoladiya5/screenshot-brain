@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import '../../../services/database_service.dart';
 import '../../../shared/models/screenshot_model.dart';
@@ -11,6 +12,7 @@ class ScreenshotRepository {
     final models = await (category != null
         ? query.filter().categoryEqualTo(category).findAll()
         : query.findAll());
+    debugPrint('[ScreenshotRepo] getAllScreenshots() returning ${models.length} items (category=$category)');
     return models.map(_toItem).toList();
   }
 

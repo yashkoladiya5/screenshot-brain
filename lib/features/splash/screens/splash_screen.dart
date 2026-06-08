@@ -13,17 +13,29 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[SplashScreen] initState - starting navigation check');
     _navigate();
   }
 
   Future<void> _navigate() async {
+    debugPrint('[SplashScreen] _navigate() - waiting 2 seconds');
     await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
+    if (!mounted) {
+      debugPrint('[SplashScreen] not mounted after delay, aborting');
+      return;
+    }
+    debugPrint('[SplashScreen] checking gallery permission');
     final hasPermission = await PermissionService.hasGalleryPermission();
-    if (!mounted) return;
+    debugPrint('[SplashScreen] hasGalleryPermission result: $hasPermission');
+    if (!mounted) {
+      debugPrint('[SplashScreen] not mounted after permission check, aborting');
+      return;
+    }
     if (hasPermission) {
+      debugPrint('[SplashScreen] permission granted, navigating to /home');
       context.go('/home');
     } else {
+      debugPrint('[SplashScreen] permission denied, navigating to /permissions');
       context.go('/permissions');
     }
   }

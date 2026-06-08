@@ -13,6 +13,7 @@ class HomeDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(homeStatsProvider);
     final isScanning = ref.watch(scanningProvider);
+    debugPrint('[HomeDashboard] build() isScanning=$isScanning statsAsync=${statsAsync.isLoading ? "loading" : statsAsync.hasError ? "error" : "data"}');
 
     return Scaffold(
       appBar: AppBar(

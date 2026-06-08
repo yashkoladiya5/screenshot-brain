@@ -14,6 +14,8 @@ class ScreenshotListScreen extends ConsumerWidget {
     final screenshotsAsync = ref.watch(screenshotListProvider);
     final isScanning = ref.watch(scanningProvider);
 
+    debugPrint('[ScreenshotListScreen] build() scanning=$isScanning asyncState=${screenshotsAsync.isLoading ? "loading" : screenshotsAsync.hasError ? "error" : "data"}');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Screenshots'),
@@ -55,12 +57,14 @@ class ScreenshotListScreen extends ConsumerWidget {
           ),
         ),
         data: (screenshots) {
+          debugPrint('[ScreenshotListScreen] data() count=${screenshots.length}');
           if (screenshots.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
               icon: Icons.photo_library_outlined,
               title: 'No Screenshots Yet',
               subtitle: 'Tap the button below to scan your screenshots',
               actionLabel: 'Scan Now',
+              onAction: () => ref.read(scanScreenshotsProvider.notifier).scan(),
             );
           }
           return RefreshIndicator(
