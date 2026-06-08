@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/category_provider.dart';
 import '../../../core/widgets/loading_widget.dart';
 
@@ -33,6 +34,7 @@ class CategoriesScreen extends ConsumerWidget {
                 count: count,
                 icon: _getCategoryIcon(category),
                 color: _getCategoryColor(category),
+                onTap: () => context.push('/categories/$category'),
               );
             },
           );
@@ -79,12 +81,14 @@ class _CategoryCard extends StatelessWidget {
   final int count;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _CategoryCard({
     required this.category,
     required this.count,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
@@ -92,8 +96,7 @@ class _CategoryCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
