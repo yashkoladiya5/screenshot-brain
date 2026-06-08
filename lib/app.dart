@@ -13,7 +13,7 @@ class ScreenshotBrainApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ScreenshotBrainTheme.light,
       darkTheme: ScreenshotBrainTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
       routerConfig: router,
     );
   }

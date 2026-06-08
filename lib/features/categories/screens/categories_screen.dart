@@ -2,131 +2,117 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/category_provider.dart';
-import '../../../core/widgets/loading_widget.dart';
+import '../../../core/design/tokens.dart';
+import '../../../core/components/sb_loading.dart';
+import '../../../core/components/sb_card.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_extensions.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
+  static const _categories = [
+    ('Payments', Icons.payments_rounded, AppColors.categoryPayments),
+    ('UPI Receipts', Icons.account_balance_rounded, AppColors.categoryUpi),
+    ('Shopping', Icons.shopping_bag_rounded, AppColors.categoryShopping),
+    ('Travel Tickets', Icons.flight_rounded, AppColors.categoryTravel),
+    ('Bills', Icons.receipt_long_rounded, AppColors.categoryBills),
+    ('Documents', Icons.description_rounded, AppColors.categoryDocuments),
+    ('OTP Screenshots', Icons.sms_rounded, AppColors.categoryOtp),
+    ('Addresses', Icons.location_on_rounded, AppColors.categoryAddress),
+    ('Notes', Icons.note_rounded, AppColors.categoryNotes),
+    ('Social Media', Icons.person_rounded, AppColors.categorySocial),
+    ('Other', Icons.folder_rounded, AppColors.categoryOther),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(categoryListProvider);
+    final theme = Theme.of(context);
     final countsAsync = ref.watch(categoryCountsProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Categories')),
       body: countsAsync.when(
-        loading: () => const LoadingWidget(),
-        error: (error, _) => Center(child: Text('Error: $error')),
-        data: (counts) {
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.2,
-            ),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              final count = counts[category] ?? 0;
-              return _CategoryCard(
-                category: category,
-                count: count,
-                icon: _getCategoryIcon(category),
-                color: _getCategoryColor(category),
-                onTap: () => context.push('/categories/$category'),
-              );
-            },
-          );
-        },
+        loading: () => const SbLoading(),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: SBSpacing.lg),
+              Text('Error: $error', style: theme.textTheme.bodyLarge),
+            ],
+          ),
+        ),
+        data: (counts) => GridView.builder(
+          padding: const EdgeInsets.all(SBSpacing.lg),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: SBSpacing.md,
+            mainAxisSpacing: SBSpacing.md,
+            childAspectRatio: 1.3,
+          ),
+          itemCount: _categories.length,
+          itemBuilder: (context, index) {
+            final (name, icon, color) = _categories[index];
+            final count = counts[name] ?? 0;
+            return _CategoryCard(
+              name: name,
+              icon: icon,
+              color: color,
+              count: count,
+            );
+          },
+        ),
       ),
     );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'Payments': return Icons.payments;
-      case 'UPI Receipts': return Icons.account_balance;
-      case 'Shopping': return Icons.shopping_bag;
-      case 'Travel Tickets': return Icons.flight;
-      case 'Bills': return Icons.receipt_long;
-      case 'Documents': return Icons.description;
-      case 'OTP Screenshots': return Icons.sms;
-      case 'Addresses': return Icons.location_on;
-      case 'Notes': return Icons.note;
-      case 'Social Media': return Icons.person;
-      default: return Icons.folder;
-    }
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Payments': return const Color(0xFF4CAF50);
-      case 'UPI Receipts': return const Color(0xFF009688);
-      case 'Shopping': return const Color(0xFFFF9800);
-      case 'Travel Tickets': return const Color(0xFF2196F3);
-      case 'Bills': return const Color(0xFFF44336);
-      case 'Documents': return const Color(0xFF9C27B0);
-      case 'OTP Screenshots': return const Color(0xFFFF5722);
-      case 'Addresses': return const Color(0xFF795548);
-      case 'Notes': return const Color(0xFF607D8B);
-      case 'Social Media': return const Color(0xFF00BCD4);
-      default: return const Color(0xFF9E9E9E);
-    }
   }
 }
 
 class _CategoryCard extends StatelessWidget {
-  final String category;
-  final int count;
+  final String name;
   final IconData icon;
   final Color color;
-  final VoidCallback? onTap;
+  final int count;
 
   const _CategoryCard({
-    required this.category,
-    required this.count,
+    required this.name,
     required this.icon,
     required this.color,
-    this.onTap,
+    required this.count,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    final theme = Theme.of(context);
+    return SbCard(
+      padding: const EdgeInsets.all(SBSpacing.lg),
+      onTap: () => context.push('/categories/$name'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(SBSpacing.sm),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(SBRadius.md),
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: SBSpacing.sm),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(category, style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$count screenshot${count == 1 ? '' : 's'}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              Text(name, style: theme.textTheme.titleSmall),
+              const SizedBox(height: SBSpacing.xxs),
+              Text(
+                '$count screenshot${count == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall?.copyWith(color: context.sb.textSecondary),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

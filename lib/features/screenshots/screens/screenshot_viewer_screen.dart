@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/widgets/loading_widget.dart';
+import '../../../core/design/tokens.dart';
+import '../../../core/components/sb_loading.dart';
 import '../../../shared/models/screenshot_model.dart';
 import '../../categories/providers/category_provider.dart';
 import '../models/screenshot_item.dart';
@@ -42,17 +42,44 @@ class ScreenshotViewerScreen extends ConsumerWidget {
     AsyncValue<List<ScreenshotModel>> galleryAsync,
   ) {
     return galleryAsync.when(
-      loading: () => const Center(child: LoadingWidget()),
-      error: (error, _) => _buildError(context, error.toString()),
+      loading: () => const Center(child: SbLoading()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+            const SizedBox(height: SBSpacing.lg),
+            Text(error.toString(), style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: SBSpacing.lg),
+            TextButton(
+              onPressed: () => context.pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
       data: (screenshots) {
         if (screenshots.isEmpty) {
-          return _buildError(context, 'No screenshots found');
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+                const SizedBox(height: SBSpacing.lg),
+                const Text('No screenshots found', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: SBSpacing.lg),
+                TextButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
         }
         final currentId = int.tryParse(screenshotId) ?? 0;
         final initialIndex = screenshots.indexWhere((s) => s.id == currentId);
         final startIndex = initialIndex >= 0 ? initialIndex : 0;
-        debugPrint('[Viewer] Gallery: ${screenshots.length} screenshots, initialIndex=$startIndex');
-        return _PageViewer(
+        return _GalleryPager(
           screenshots: screenshots,
           initialIndex: startIndex,
         );
@@ -65,47 +92,47 @@ class ScreenshotViewerScreen extends ConsumerWidget {
     AsyncValue<ScreenshotItem?> singleAsync,
   ) {
     return singleAsync.when(
-      loading: () => const Center(child: LoadingWidget()),
-      error: (error, _) => _buildError(context, error.toString()),
+      loading: () => const Center(child: SbLoading()),
+      error: (error, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+            const SizedBox(height: SBSpacing.lg),
+            Text(error.toString(), style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: SBSpacing.lg),
+            TextButton(
+              onPressed: () => context.pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
       data: (screenshot) {
         if (screenshot == null) {
-          return _buildError(context, 'Screenshot not found');
+          return const Center(child: Text('Screenshot not found', style: TextStyle(color: Colors.white70)));
         }
-        return _SingleViewer(filePath: screenshot.filePath, onClose: () => context.pop());
+        return _ImageViewer(
+          filePath: screenshot.filePath,
+          heroTag: 'screenshot_${screenshot.id}',
+          onClose: () => context.pop(),
+        );
       },
     );
   }
-
-  Widget _buildError(BuildContext context, String message) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.broken_image, color: Colors.white54, size: 64),
-          const SizedBox(height: 16),
-          Text(message, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _PageViewer extends StatefulWidget {
+class _GalleryPager extends StatefulWidget {
   final List<ScreenshotModel> screenshots;
   final int initialIndex;
 
-  const _PageViewer({required this.screenshots, required this.initialIndex});
+  const _GalleryPager({required this.screenshots, required this.initialIndex});
 
   @override
-  State<_PageViewer> createState() => _PageViewerState();
+  State<_GalleryPager> createState() => _GalleryPagerState();
 }
 
-class _PageViewerState extends State<_PageViewer> {
+class _GalleryPagerState extends State<_GalleryPager> {
   late PageController _pageController;
   late int _currentIndex;
 
@@ -114,7 +141,6 @@ class _PageViewerState extends State<_PageViewer> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    debugPrint('[PageViewer] initState: initialIndex=$_currentIndex total=${widget.screenshots.length}');
   }
 
   @override
@@ -131,10 +157,7 @@ class _PageViewerState extends State<_PageViewer> {
         PageView.builder(
           controller: _pageController,
           itemCount: widget.screenshots.length,
-          onPageChanged: (index) {
-            debugPrint('[PageViewer] onPageChanged: $index');
-            setState(() => _currentIndex = index);
-          },
+          onPageChanged: (index) => setState(() => _currentIndex = index),
           itemBuilder: (context, index) {
             final screenshot = widget.screenshots[index];
             return _ZoomableImage(
@@ -146,19 +169,29 @@ class _PageViewerState extends State<_PageViewer> {
           },
         ),
         Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          left: 16,
-          child: Text(
-            '${_currentIndex + 1} / ${widget.screenshots.length}',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ),
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          right: 8,
-          child: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white, size: 28),
-            onPressed: () => Navigator.of(context).pop(),
+          top: MediaQuery.of(context).padding.top + 12,
+          left: 0,
+          right: 0,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.xs),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(SBRadius.lg),
+                ),
+                child: Text(
+                  '${_currentIndex + 1} / ${widget.screenshots.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
           ),
         ),
       ],
@@ -166,23 +199,26 @@ class _PageViewerState extends State<_PageViewer> {
   }
 }
 
-class _SingleViewer extends StatelessWidget {
+class _ImageViewer extends StatelessWidget {
   final String filePath;
+  final String heroTag;
   final VoidCallback onClose;
 
-  const _SingleViewer({required this.filePath, required this.onClose});
+  const _ImageViewer({required this.filePath, required this.heroTag, required this.onClose});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const Center(child: _ZoomableImage(filePath: '', heroTag: 'single')),
+        Center(
+          child: _ZoomableImage(filePath: filePath, heroTag: heroTag),
+        ),
         Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          right: 8,
+          top: MediaQuery.of(context).padding.top + 12,
+          left: 12,
           child: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white, size: 28),
+            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
             onPressed: onClose,
           ),
         ),
@@ -251,14 +287,14 @@ class _ZoomableImageState extends State<_ZoomableImage> {
           tag: widget.heroTag,
           child: Transform(
             transform: Matrix4.identity()
-              ..translate(_offset.dx, _offset.dy)
-              ..scale(_scale),
+              ..translateByDouble(_offset.dx, _offset.dy, 0.0, 1.0)
+              ..scaleByDouble(_scale, _scale, 1.0, 1.0),
             alignment: Alignment.center,
             child: Image.file(
               File(widget.filePath),
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image,
+                Icons.broken_image_rounded,
                 color: Colors.white54,
                 size: 64,
               ),
