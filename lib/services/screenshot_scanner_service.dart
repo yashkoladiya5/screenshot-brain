@@ -50,6 +50,10 @@ class ScreenshotScannerService {
       for (final album in screenshotAlbums) {
         final count = await album.assetCountAsync;
         debugPrint('[ScannerService] Processing album: "${album.name}" ($count assets)');
+        if (count == 0) {
+          debugPrint('[ScannerService]   Skipping empty album');
+          continue;
+        }
         final assets = await album.getAssetListPaged(
           page: 0,
           size: count,

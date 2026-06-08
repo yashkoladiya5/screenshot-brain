@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Screenshot Brain needs access to your photo library to scan and organize your screenshots. All processing is done on-device.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Screenshot Brain may save processed images back to your photo library.</string>
 </dict>
 </plist>

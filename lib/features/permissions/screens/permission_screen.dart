@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../services/permission_service.dart';
 import '../../../core/design/tokens.dart';
 import '../../../core/theme/app_colors.dart';
@@ -26,6 +27,22 @@ class _PermissionScreenState extends State<PermissionScreen> with SingleTickerPr
     );
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _animController.forward();
+    _checkInitialPermission();
+  }
+
+  Future<void> _checkInitialPermission() async {
+    final hasPermission = await PermissionService.hasGalleryPermission();
+    if (!mounted) return;
+    if (hasPermission) {
+      context.go('/home');
+      return;
+    }
+    // Check if permanently denied without requesting
+    final photosStatus = await Permission.photos.status;
+    if (!mounted) return;
+    if (photosStatus.isPermanentlyDenied) {
+      setState(() => _isPermanentlyDenied = true);
+    }
   }
 
   @override
