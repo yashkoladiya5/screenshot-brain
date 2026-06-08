@@ -22,36 +22,42 @@ class ScreenshotRepository {
   }
 
   Future<int> saveScreenshot(ScreenshotModel model) async {
-    return db.screenshotModels.put(model);
+    return db.writeTxn(() => db.screenshotModels.put(model));
   }
 
   Future<void> updateCategory(int id, String category) async {
-    final model = await db.screenshotModels.get(id);
-    if (model != null) {
-      model.category = category;
-      await db.screenshotModels.put(model);
-    }
+    await db.writeTxn(() async {
+      final model = await db.screenshotModels.get(id);
+      if (model != null) {
+        model.category = category;
+        await db.screenshotModels.put(model);
+      }
+    });
   }
 
   Future<void> updateExtractedText(int id, String text) async {
-    final model = await db.screenshotModels.get(id);
-    if (model != null) {
-      model.extractedText = text;
-      model.isProcessed = true;
-      await db.screenshotModels.put(model);
-    }
+    await db.writeTxn(() async {
+      final model = await db.screenshotModels.get(id);
+      if (model != null) {
+        model.extractedText = text;
+        model.isProcessed = true;
+        await db.screenshotModels.put(model);
+      }
+    });
   }
 
   Future<void> markAsExpense(int id, bool isExpense) async {
-    final model = await db.screenshotModels.get(id);
-    if (model != null) {
-      model.isExpense = isExpense;
-      await db.screenshotModels.put(model);
-    }
+    await db.writeTxn(() async {
+      final model = await db.screenshotModels.get(id);
+      if (model != null) {
+        model.isExpense = isExpense;
+        await db.screenshotModels.put(model);
+      }
+    });
   }
 
   Future<void> deleteScreenshot(int id) async {
-    await db.screenshotModels.delete(id);
+    await db.writeTxn(() => db.screenshotModels.delete(id));
   }
 
   Future<List<ScreenshotItem>> searchScreenshots(String query) async {

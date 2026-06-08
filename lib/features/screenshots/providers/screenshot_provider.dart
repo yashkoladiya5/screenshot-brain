@@ -87,7 +87,7 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
           if (CategorizationService.isExpense(text)) {
             await repo.markAsExpense(id, true);
             final expense = ExpenseExtractionService.extractExpense(text, id);
-            await DatabaseService.db.expenseModels.put(expense);
+            await DatabaseService.db.writeTxn(() => DatabaseService.db.expenseModels.put(expense));
             debugPrint('[ScanNotifier] Marked as expense id=$id');
           }
         } catch (e) {
@@ -119,7 +119,8 @@ final scanScreenshotsProvider = AsyncNotifierProvider<ScanScreenshotsNotifier, v
 
 final deleteScreenshotProvider = FutureProvider.family<void, int>((ref, id) async {
   final repo = ref.read(screenshotRepositoryProvider);
-  await DatabaseService.db.expenseModels.filter().screenshotIdEqualTo(id).deleteAll();
+  final db = DatabaseService.db;
+  await db.writeTxn(() => db.expenseModels.filter().screenshotIdEqualTo(id).deleteAll());
   await repo.deleteScreenshot(id);
   ref.invalidate(screenshotListProvider);
   ref.invalidate(homeStatsProvider);

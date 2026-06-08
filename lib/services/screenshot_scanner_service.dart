@@ -1,66 +1,84 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 class ScreenshotScannerService {
   static Future<List<File>> scanScreenshots() async {
-    final screenshots = <File>[];
+    final files = <File>[];
     try {
-      final directories = await _getScreenshotDirectories();
-      debugPrint('[ScannerService] Checking ${directories.length} directories for screenshots...');
-      for (final dir in directories) {
-        final exists = await dir.exists();
-        debugPrint('[ScannerService]   Dir: ${dir.path}  exists=$exists');
-        if (exists) {
-          try {
-            await for (final entity in dir.list(recursive: true)) {
-              if (entity is File && _isImageFile(entity.path)) {
-                screenshots.add(entity);
-              }
+      debugPrint('[ScannerService] === Starting scan via photo_manager ===');
+
+      if (Platform.isAndroid) {
+        debugPrint('[ScannerService] Platform is Android');
+      } else if (Platform.isIOS) {
+        debugPrint('[ScannerService] Platform is iOS');
+      }
+
+      // Request permission through photo_manager
+      final permission = await PhotoManager.requestPermissionExtend();
+      debugPrint('[ScannerService] photo_manager permission: $permission (hasAccess=${permission.hasAccess})');
+      if (!permission.hasAccess) {
+        debugPrint('[ScannerService] Permission denied — cannot scan');
+        return files;
+      }
+
+      // Get all image albums from the device
+      final paths = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+        hasAll: false,
+      );
+      debugPrint('[ScannerService] Found ${paths.length} image albums on device');
+
+      // Filter for albums that contain "Screenshot" in their name
+      final screenshotAlbums = <AssetPathEntity>[];
+      for (final path in paths) {
+        final name = path.name.toLowerCase();
+        final relPath = (await path.relativePathAsync)?.toLowerCase() ?? '';
+        final isScreenshot = name.contains('screenshot') ||
+            relPath.contains('screenshot') ||
+            relPath.contains('dcim/screenshots') ||
+            relPath.contains('pictures/screenshots');
+        if (isScreenshot) {
+          final count = await path.assetCountAsync;
+          debugPrint('[ScannerService]   MATCH: "${path.name}" relativePath="$relPath" assets=$count');
+          screenshotAlbums.add(path);
+        }
+      }
+
+      debugPrint('[ScannerService] Found ${screenshotAlbums.length} screenshot albums');
+
+      for (final album in screenshotAlbums) {
+        final count = await album.assetCountAsync;
+        debugPrint('[ScannerService] Processing album: "${album.name}" ($count assets)');
+        final assets = await album.getAssetListPaged(
+          page: 0,
+          size: count,
+        );
+        debugPrint('[ScannerService]   Fetched ${assets.length} assets from album');
+
+        for (final asset in assets) {
+          debugPrint('[ScannerService]   Asset: id=${asset.id} title="${asset.title}" relativePath="${asset.relativePath}"');
+          final file = await asset.file;
+          if (file != null) {
+            files.add(file);
+            debugPrint('[ScannerService]     File: ${file.path}');
+          } else {
+            final originFile = await asset.originFile;
+            if (originFile != null) {
+              files.add(originFile);
+              debugPrint('[ScannerService]     OriginFile: ${originFile.path}');
+            } else {
+              debugPrint('[ScannerService]     No accessible file for asset ${asset.id}');
             }
-          } catch (e) {
-            debugPrint('[ScannerService]   Error listing dir ${dir.path}: $e');
           }
         }
       }
-      debugPrint('[ScannerService] Total screenshots found: ${screenshots.length}');
-    } catch (e) {
+
+      debugPrint('[ScannerService] === Scan complete: ${files.length} screenshot files found ===');
+    } catch (e, stack) {
       debugPrint('[ScannerService] scanScreenshots error: $e');
+      debugPrint('[ScannerService] stack: $stack');
     }
-    return screenshots;
-  }
-
-  static Future<List<Directory>> _getScreenshotDirectories() async {
-    final dirs = <Directory>[];
-    try {
-      if (Platform.isAndroid) {
-        debugPrint('[ScannerService] Platform is Android');
-        final extDir = await getExternalStorageDirectory();
-        debugPrint('[ScannerService] getExternalStorageDirectory: ${extDir?.path}');
-        if (extDir != null) {
-          final base = extDir.parent.parent.parent.parent.path;
-          debugPrint('[ScannerService] Base path from extDir parents: $base');
-          dirs.add(Directory('$base/DCIM/Screenshots'));
-          dirs.add(Directory('$base/Pictures/Screenshots'));
-          dirs.add(Directory('$base/Screenshots'));
-        } else {
-          debugPrint('[ScannerService] getExternalStorageDirectory returned null!');
-        }
-        dirs.add(Directory('/storage/emulated/0/DCIM/Screenshots'));
-        dirs.add(Directory('/storage/emulated/0/Pictures/Screenshots'));
-        dirs.add(Directory('/storage/emulated/0/Screenshots'));
-      } else if (Platform.isIOS) {
-        final appDir = await getApplicationDocumentsDirectory();
-        dirs.add(Directory('${appDir.path}/Screenshots'));
-      }
-    } catch (e) {
-      debugPrint('[ScannerService] _getScreenshotDirectories error: $e');
-    }
-    return dirs;
-  }
-
-  static bool _isImageFile(String path) {
-    final ext = path.toLowerCase();
-    return ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.png') || ext.endsWith('.webp');
+    return files;
   }
 }

@@ -58,7 +58,7 @@ class ExpenseRepository {
   }
 
   Future<void> deleteExpense(int id) async {
-    await db.expenseModels.delete(id);
+    await db.writeTxn(() => db.expenseModels.delete(id));
   }
 
   ExpenseItem _toItem(ExpenseModel model) {
