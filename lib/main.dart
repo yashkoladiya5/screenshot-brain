@@ -12,3 +12,4 @@ void main() async {
   // 4. Run the application
   runApp(const ProviderScope(child: ScreenshotBrainApp()));
 }
+// 5. End of main
