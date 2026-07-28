@@ -5,6 +5,7 @@ import 'services/database_service.dart';
 
 // 1. App entry point
 void main() async {
+  // 2. Initialize Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseService.init();
   runApp(const ProviderScope(child: ScreenshotBrainApp()));
