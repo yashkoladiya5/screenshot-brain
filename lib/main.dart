@@ -9,5 +9,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 3. Initialize the database service
   await DatabaseService.init();
+  // 4. Run the application
   runApp(const ProviderScope(child: ScreenshotBrainApp()));
 }
