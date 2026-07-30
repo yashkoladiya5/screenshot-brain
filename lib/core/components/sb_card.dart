@@ -24,7 +24,7 @@ class SbCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final card = Container(
+    final Widget card = Container(
       constraints: minHeight != null ? BoxConstraints(minHeight: minHeight!) : null,
       padding: padding ?? const EdgeInsets.all(SBSpacing.lg),
       decoration: BoxDecoration(
