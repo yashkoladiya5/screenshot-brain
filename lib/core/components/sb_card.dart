@@ -36,9 +36,11 @@ class SbCard extends StatelessWidget {
       child: child,
     );
 
+    final marginPadding = margin ?? EdgeInsets.zero;
+
     if (onTap != null || onLongPress != null) {
       return Padding(
-        padding: margin ?? EdgeInsets.zero,
+        padding: marginPadding,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -52,7 +54,7 @@ class SbCard extends StatelessWidget {
     }
 
     return Padding(
-      padding: margin ?? EdgeInsets.zero,
+      padding: marginPadding,
       child: card,
     );
   }

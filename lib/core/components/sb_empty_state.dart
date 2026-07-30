@@ -24,6 +24,7 @@ class SbEmptyState extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final paddingValue = const EdgeInsets.all(SBSpacing.xl);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: SBSpacing.xxxl),
@@ -31,7 +32,7 @@ class SbEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(SBSpacing.xl),
+              padding: paddingValue,
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(SBRadius.xxl),

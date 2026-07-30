@@ -12,12 +12,13 @@ class SbTab extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final widthBox = const SizedBox(width: SBSpacing.xs);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: textTheme.titleSmall),
         if (count > 0) ...[
-          const SizedBox(width: SBSpacing.xs),
+          widthBox,
           Container(
             padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm, vertical: 2),
             decoration: BoxDecoration(

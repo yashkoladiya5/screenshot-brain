@@ -24,6 +24,8 @@ class SbChip extends StatelessWidget {
     final textTheme = theme.textTheme;
     final chipColor = color ?? colorScheme.primary;
 
+    final widthBox = const SizedBox(width: SBSpacing.xs);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -42,7 +44,7 @@ class SbChip extends StatelessWidget {
           children: [
             if (icon != null) ...[
               Icon(icon, size: SBSizes.iconSm, color: selected ? chipColor : colorScheme.onSurfaceVariant),
-              const SizedBox(width: SBSpacing.xs),
+              widthBox,
             ],
             Text(
               label,
