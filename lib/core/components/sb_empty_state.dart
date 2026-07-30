@@ -23,6 +23,7 @@ class SbEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: SBSpacing.xxxl),
@@ -38,12 +39,12 @@ class SbEmptyState extends StatelessWidget {
               child: Icon(icon, size: 40, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             ),
             const SizedBox(height: SBSpacing.xl),
-            Text(title, style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),
+            Text(title, style: textTheme.headlineSmall, textAlign: TextAlign.center),
             if (subtitle != null) ...[
               const SizedBox(height: SBSpacing.sm),
               Text(
                 subtitle!,
-                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],

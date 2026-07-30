@@ -77,6 +77,7 @@ class SbCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
     return Row(
       children: [
         if (leadingIcon != null) ...[
@@ -94,11 +95,11 @@ class SbCardHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: theme.textTheme.titleSmall),
+              Text(title, style: textTheme.titleSmall),
               if (subtitle != null)
                 Padding(
                   padding: const EdgeInsets.only(top: SBSpacing.xxs),
-                  child: Text(subtitle!, style: theme.textTheme.bodySmall),
+                  child: Text(subtitle!, style: textTheme.bodySmall),
                 ),
             ],
           ),

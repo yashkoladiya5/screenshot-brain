@@ -21,6 +21,7 @@ class SbChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     final chipColor = color ?? colorScheme.primary;
 
     return GestureDetector(
@@ -45,7 +46,7 @@ class SbChip extends StatelessWidget {
             ],
             Text(
               label,
-              style: theme.textTheme.labelMedium?.copyWith(
+              style: textTheme.labelMedium?.copyWith(
                 color: selected ? chipColor : colorScheme.onSurfaceVariant,
               ),
             ),

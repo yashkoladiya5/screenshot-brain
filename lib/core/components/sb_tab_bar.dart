@@ -11,10 +11,11 @@ class SbTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: theme.textTheme.titleSmall),
+        Text(label, style: textTheme.titleSmall),
         if (count > 0) ...[
           const SizedBox(width: SBSpacing.xs),
           Container(
@@ -23,7 +24,7 @@ class SbTab extends StatelessWidget {
               color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(SBRadius.full),
             ),
-            child: Text('$count', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
+            child: Text('$count', style: textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
           ),
         ],
       ],
