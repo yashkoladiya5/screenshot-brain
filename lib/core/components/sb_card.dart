@@ -80,16 +80,17 @@ class SbCardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final primaryColor = theme.colorScheme.primary;
     return Row(
       children: [
         if (leadingIcon != null) ...[
           Container(
             padding: const EdgeInsets.all(SBSpacing.sm),
             decoration: BoxDecoration(
-              color: (leadingColor ?? theme.colorScheme.primary).withValues(alpha: 0.12),
+              color: (leadingColor ?? primaryColor).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(SBRadius.sm),
             ),
-            child: Icon(leadingIcon, color: leadingColor ?? theme.colorScheme.primary, size: SBSizes.iconMd),
+            child: Icon(leadingIcon, color: leadingColor ?? primaryColor, size: SBSizes.iconMd),
           ),
           const SizedBox(width: SBSpacing.md),
         ],

@@ -13,6 +13,7 @@ class SbTab extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final widthBox = const SizedBox(width: SBSpacing.xs);
+    final borderRadius = BorderRadius.circular(SBRadius.full);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -23,7 +24,7 @@ class SbTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm, vertical: 2),
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(SBRadius.full),
+              borderRadius: borderRadius,
             ),
             child: Text('$count', style: textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
           ),

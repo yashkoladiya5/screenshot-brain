@@ -25,6 +25,7 @@ class SbChip extends StatelessWidget {
     final chipColor = color ?? colorScheme.primary;
 
     final widthBox = const SizedBox(width: SBSpacing.xs);
+    final borderRadius = BorderRadius.circular(SBRadius.lg);
 
     return GestureDetector(
       onTap: onTap,
@@ -33,7 +34,7 @@ class SbChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.sm),
         decoration: BoxDecoration(
           color: selected ? chipColor.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(SBRadius.lg),
+          borderRadius: borderRadius,
           border: Border.all(
             color: selected ? chipColor.withValues(alpha: 0.4) : colorScheme.outlineVariant,
             width: 1,
