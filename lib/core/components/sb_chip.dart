@@ -20,7 +20,8 @@ class SbChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final chipColor = color ?? theme.colorScheme.primary;
+    final colorScheme = theme.colorScheme;
+    final chipColor = color ?? colorScheme.primary;
 
     return GestureDetector(
       onTap: onTap,
@@ -31,7 +32,7 @@ class SbChip extends StatelessWidget {
           color: selected ? chipColor.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(SBRadius.lg),
           border: Border.all(
-            color: selected ? chipColor.withValues(alpha: 0.4) : theme.colorScheme.outlineVariant,
+            color: selected ? chipColor.withValues(alpha: 0.4) : colorScheme.outlineVariant,
             width: 1,
           ),
         ),
@@ -39,13 +40,13 @@ class SbChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: SBSizes.iconSm, color: selected ? chipColor : theme.colorScheme.onSurfaceVariant),
+              Icon(icon, size: SBSizes.iconSm, color: selected ? chipColor : colorScheme.onSurfaceVariant),
               const SizedBox(width: SBSpacing.xs),
             ],
             Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
-                color: selected ? chipColor : theme.colorScheme.onSurfaceVariant,
+                color: selected ? chipColor : colorScheme.onSurfaceVariant,
               ),
             ),
           ],

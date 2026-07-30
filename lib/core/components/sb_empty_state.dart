@@ -22,6 +22,7 @@ class SbEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: SBSpacing.xxxl),
@@ -31,10 +32,10 @@ class SbEmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(SBSpacing.xl),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(SBRadius.xxl),
               ),
-              child: Icon(icon, size: 40, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+              child: Icon(icon, size: 40, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             ),
             const SizedBox(height: SBSpacing.xl),
             Text(title, style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),
@@ -42,7 +43,7 @@ class SbEmptyState extends StatelessWidget {
               const SizedBox(height: SBSpacing.sm),
               Text(
                 subtitle!,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],

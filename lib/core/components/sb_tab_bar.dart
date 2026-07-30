@@ -10,6 +10,7 @@ class SbTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -19,10 +20,10 @@ class SbTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm, vertical: 2),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(SBRadius.full),
             ),
-            child: Text('$count', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary)),
+            child: Text('$count', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
           ),
         ],
       ],

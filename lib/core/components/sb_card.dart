@@ -24,13 +24,14 @@ class SbCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final Widget card = Container(
       constraints: minHeight != null ? BoxConstraints(minHeight: minHeight!) : null,
       padding: padding ?? const EdgeInsets.all(SBSpacing.lg),
       decoration: BoxDecoration(
-        color: color ?? theme.colorScheme.surfaceContainerHighest,
+        color: color ?? colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(SBRadius.xl),
-        border: Border.all(color: theme.colorScheme.outlineVariant, width: 1),
+        border: Border.all(color: colorScheme.outlineVariant, width: 1),
       ),
       child: child,
     );
