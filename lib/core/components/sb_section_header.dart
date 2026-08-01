@@ -18,6 +18,7 @@ class SbSectionHeader extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final paddingBtn = const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.xs);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -26,7 +27,7 @@ class SbSectionHeader extends StatelessWidget {
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.xs),
+              padding: paddingBtn,
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),

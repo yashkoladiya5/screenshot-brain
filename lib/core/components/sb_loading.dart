@@ -11,6 +11,7 @@ class SbLoading extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final heightBox = const SizedBox(height: SBSpacing.lg);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -24,7 +25,7 @@ class SbLoading extends StatelessWidget {
             ),
           ),
           if (message != null) ...[
-            const SizedBox(height: SBSpacing.lg),
+            heightBox,
             Text(message!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           ],
         ],

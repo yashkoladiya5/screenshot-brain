@@ -25,6 +25,9 @@ class SbStatCard extends StatelessWidget {
     final textTheme = theme.textTheme;
     final accentColor = color ?? colorScheme.primary;
 
+    final paddingSm = const EdgeInsets.all(SBSpacing.sm);
+    final radiusSm = BorderRadius.circular(SBRadius.sm);
+
     return SbCard(
       onTap: onTap,
       padding: const EdgeInsets.all(SBSpacing.lg),
@@ -32,10 +35,10 @@ class SbStatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(SBSpacing.sm),
+            padding: paddingSm,
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(SBRadius.sm),
+              borderRadius: radiusSm,
             ),
             child: Icon(icon, color: accentColor, size: SBSizes.iconXl),
           ),
