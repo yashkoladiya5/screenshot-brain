@@ -16,6 +16,7 @@ class SbSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -28,7 +29,7 @@ class SbSectionHeader extends StatelessWidget {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Text(actionLabel!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
+            child: Text(actionLabel!, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
           ),
       ],
     );

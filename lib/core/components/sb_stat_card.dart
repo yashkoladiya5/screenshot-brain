@@ -21,7 +21,8 @@ class SbStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final accentColor = color ?? theme.colorScheme.primary;
+    final colorScheme = theme.colorScheme;
+    final accentColor = color ?? colorScheme.primary;
 
     return SbCard(
       onTap: onTap,
@@ -38,7 +39,7 @@ class SbStatCard extends StatelessWidget {
             child: Icon(icon, color: accentColor, size: SBSizes.iconXl),
           ),
           const SizedBox(height: SBSpacing.md),
-          Text(value, style: theme.textTheme.displaySmall?.copyWith(color: theme.colorScheme.onSurface)),
+          Text(value, style: theme.textTheme.displaySmall?.copyWith(color: colorScheme.onSurface)),
           const SizedBox(height: SBSpacing.xxs),
           Text(label, style: theme.textTheme.bodySmall),
         ],

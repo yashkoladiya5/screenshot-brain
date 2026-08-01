@@ -9,6 +9,7 @@ class SbLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -18,12 +19,12 @@ class SbLoading extends StatelessWidget {
             height: 32,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              color: theme.colorScheme.primary,
+              color: colorScheme.primary,
             ),
           ),
           if (message != null) ...[
             const SizedBox(height: SBSpacing.lg),
-            Text(message!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(message!, style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           ],
         ],
       ),

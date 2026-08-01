@@ -10,6 +10,7 @@ class SbErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(SBSpacing.xxl),
@@ -19,10 +20,10 @@ class SbErrorState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(SBSpacing.xl),
               decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                color: colorScheme.errorContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(SBRadius.xxl),
               ),
-              child: Icon(Icons.error_outline_rounded, size: 40, color: theme.colorScheme.error),
+              child: Icon(Icons.error_outline_rounded, size: 40, color: colorScheme.error),
             ),
             const SizedBox(height: SBSpacing.lg),
             Text(message, style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
