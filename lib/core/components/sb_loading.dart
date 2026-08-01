@@ -12,9 +12,10 @@ class SbLoading extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final heightBox = const SizedBox(height: SBSpacing.lg);
+    final sizeMin = MainAxisSize.min;
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: sizeMin,
         children: [
           SizedBox(
             width: 32,

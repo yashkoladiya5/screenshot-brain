@@ -19,8 +19,9 @@ class SbSectionHeader extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final paddingBtn = const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.xs);
+    final mainAlign = MainAxisAlignment.spaceBetween;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: mainAlign,
       children: [
         Text(title, style: textTheme.titleMedium),
         if (actionLabel != null && onAction != null)

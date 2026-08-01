@@ -14,6 +14,7 @@ class SbErrorState extends StatelessWidget {
     final textTheme = theme.textTheme;
     final paddingXl = const EdgeInsets.all(SBSpacing.xl);
     final radiusXxl = BorderRadius.circular(SBRadius.xxl);
+    final heightBox = const SizedBox(height: SBSpacing.lg);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(SBSpacing.xxl),
@@ -28,10 +29,10 @@ class SbErrorState extends StatelessWidget {
               ),
               child: Icon(Icons.error_outline_rounded, size: 40, color: colorScheme.error),
             ),
-            const SizedBox(height: SBSpacing.lg),
+            heightBox,
             Text(message, style: textTheme.bodyLarge, textAlign: TextAlign.center),
             if (onRetry != null) ...[
-              const SizedBox(height: SBSpacing.lg),
+              heightBox,
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded, size: SBSizes.iconMd),
