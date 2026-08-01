@@ -17,10 +17,11 @@ class SbSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: theme.textTheme.titleMedium),
+        Text(title, style: textTheme.titleMedium),
         if (actionLabel != null && onAction != null)
           TextButton(
             onPressed: onAction,
@@ -29,7 +30,7 @@ class SbSectionHeader extends StatelessWidget {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Text(actionLabel!, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
+            child: Text(actionLabel!, style: textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
           ),
       ],
     );

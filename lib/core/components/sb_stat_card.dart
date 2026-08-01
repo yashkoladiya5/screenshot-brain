@@ -22,6 +22,7 @@ class SbStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     final accentColor = color ?? colorScheme.primary;
 
     return SbCard(
@@ -39,9 +40,9 @@ class SbStatCard extends StatelessWidget {
             child: Icon(icon, color: accentColor, size: SBSizes.iconXl),
           ),
           const SizedBox(height: SBSpacing.md),
-          Text(value, style: theme.textTheme.displaySmall?.copyWith(color: colorScheme.onSurface)),
+          Text(value, style: textTheme.displaySmall?.copyWith(color: colorScheme.onSurface)),
           const SizedBox(height: SBSpacing.xxs),
-          Text(label, style: theme.textTheme.bodySmall),
+          Text(label, style: textTheme.bodySmall),
         ],
       ),
     );
