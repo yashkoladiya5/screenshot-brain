@@ -8,9 +8,7 @@ class OcrService {
 
   Future<String> extractText(String imagePath) async {
     try {
-      final inputImage = InputImage.fromFilePath(imagePath);
-      final RecognizedText recognisedText = await _recognizer.processImage(inputImage);
-      return recognisedText.text;
+      return await _processImage(InputImage.fromFilePath(imagePath));
     } catch (e) {
       throw Exception('OCR failed: $e');
     }
@@ -18,12 +16,16 @@ class OcrService {
 
   Future<String> extractTextFromFile(File imageFile) async {
     try {
-      final inputImage = InputImage.fromFile(imageFile);
-      final RecognizedText recognisedText = await _recognizer.processImage(inputImage);
-      return recognisedText.text;
+      return await _processImage(InputImage.fromFile(imageFile));
     } catch (e) {
       throw Exception('OCR failed: $e');
     }
+  }
+
+  Future<String> _processImage(InputImage inputImage) async {
+    final RecognizedText recognisedText =
+        await _recognizer.processImage(inputImage);
+    return recognisedText.text;
   }
 
   void dispose() {
