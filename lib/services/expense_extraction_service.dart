@@ -38,8 +38,8 @@ class ExpenseExtractionService {
   static DateTime? extractDate(String text) {
     final datePatterns = [
       RegExp(r'(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})'),
-      RegExp(r'(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dev)[a-z]*\s+\d{2,4})', caseSensitive: false),
-      RegExp(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dev)[a-z]*\s+\d{1,2},?\s+\d{2,4})', caseSensitive: false),
+      RegExp(r'(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4})', caseSensitive: false),
+      RegExp(r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{2,4})', caseSensitive: false),
     ];
     for (final pattern in datePatterns) {
       final match = pattern.firstMatch(text);
