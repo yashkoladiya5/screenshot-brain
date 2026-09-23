@@ -5,16 +5,16 @@ import 'dart:async';
 class SbGlitchTextEffect extends StatefulWidget {
   final String text;
   final TextStyle style;
-  final Color primaryGlitchColor;
-  final Color secondaryGlitchColor;
+  final Color primaryColor; // Usually Cyan for glitch
+  final Color secondaryColor; // Usually Red/Magenta for glitch
   final bool isGlitching;
 
   const SbGlitchTextEffect({
     super.key,
     required this.text,
-    this.style = const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
-    this.primaryGlitchColor = Colors.red,
-    this.secondaryGlitchColor = Colors.cyan,
+    this.style = const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+    this.primaryColor = const Color(0xFF00FFFF),
+    this.secondaryColor = const Color(0xFFFF00FF),
     this.isGlitching = true,
   });
 
@@ -22,194 +22,229 @@ class SbGlitchTextEffect extends StatefulWidget {
   State<SbGlitchTextEffect> createState() => _SbGlitchTextEffectState();
 }
 
-class _SbGlitchTextEffectState extends State<SbGlitchTextEffect> with SingleTickerProviderStateMixin {
-  late Timer _glitchTimer;
+class _SbGlitchTextEffectState extends State<SbGlitchTextEffect> {
   final math.Random _random = math.Random();
   
-  double _xOffsetPrimary = 0.0;
-  double _yOffsetPrimary = 0.0;
+  // Offsets for the RGB split channels
+  double _cyanOffsetX = 0;
+  double _cyanOffsetY = 0;
+  double _magentaOffsetX = 0;
+  double _magentaOffsetY = 0;
   
-  double _xOffsetSecondary = 0.0;
-  double _yOffsetSecondary = 0.0;
+  // Variables for the "slicing" effect
+  double _sliceY = 0;
+  double _sliceHeight = 0;
+  double _sliceOffsetX = 0;
   
-  double _opacityPrimary = 0.0;
-  double _opacitySecondary = 0.0;
-  
-  // Variables for slice clipping
-  double _clipTop = 0.0;
-  double _clipBottom = 1.0;
+  Timer? _glitchTimer;
+  Timer? _sliceTimer;
 
   @override
   void initState() {
     super.initState();
     if (widget.isGlitching) {
-      _startGlitching();
+      _startGlitch();
     }
   }
 
   @override
   void didUpdateWidget(SbGlitchTextEffect oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isGlitching && !oldWidget.isGlitching) {
-      _startGlitching();
-    } else if (!widget.isGlitching && oldWidget.isGlitching) {
-      _stopGlitching();
+    if (widget.isGlitching != oldWidget.isGlitching) {
+      if (widget.isGlitching) {
+        _startGlitch();
+      } else {
+        _stopGlitch();
+      }
     }
   }
 
-  void _startGlitching() {
-    // Run a timer very fast to simulate erratic hardware glitches
+  void _startGlitch() {
+    // 1. Rapid color channel splitting (RGB shift)
     _glitchTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (!mounted) return;
       
-      // We don't want it to glitch constantly, we want it to stutter
-      // 80% chance to do nothing (appear normal)
-      if (_random.nextDouble() > 0.2) {
+      // Usually, glitches aren't constant. They happen in bursts.
+      if (_random.nextDouble() > 0.8) {
         setState(() {
-          _xOffsetPrimary = 0.0;
-          _yOffsetPrimary = 0.0;
-          _xOffsetSecondary = 0.0;
-          _yOffsetSecondary = 0.0;
-          _opacityPrimary = 0.0;
-          _opacitySecondary = 0.0;
-          _clipTop = 0.0;
-          _clipBottom = 1.0;
+          // Intense glitch
+          _cyanOffsetX = (_random.nextDouble() - 0.5) * 10;
+          _cyanOffsetY = (_random.nextDouble() - 0.5) * 4;
+          _magentaOffsetX = (_random.nextDouble() - 0.5) * 10;
+          _magentaOffsetY = (_random.nextDouble() - 0.5) * 4;
         });
-        return;
+      } else if (_random.nextDouble() > 0.6) {
+        setState(() {
+          // Mild jitter
+          _cyanOffsetX = (_random.nextDouble() - 0.5) * 3;
+          _cyanOffsetY = 0;
+          _magentaOffsetX = (_random.nextDouble() - 0.5) * 3;
+          _magentaOffsetY = 0;
+        });
+      } else {
+        // Return to normal
+        setState(() {
+          _cyanOffsetX = 0;
+          _cyanOffsetY = 0;
+          _magentaOffsetX = 0;
+          _magentaOffsetY = 0;
+        });
       }
+    });
 
-      // 20% chance to trigger a violent glitch
-      setState(() {
-        // Random offsets between -4.0 and 4.0
-        _xOffsetPrimary = (_random.nextDouble() * 8.0) - 4.0;
-        _yOffsetPrimary = (_random.nextDouble() * 4.0) - 2.0;
+    // 2. The horizontal slicing/tearing effect
+    _sliceTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (!mounted) return;
+      
+      if (_random.nextDouble() > 0.85) {
+        setState(() {
+          // Tear a random horizontal chunk of the text
+          _sliceY = _random.nextDouble(); // 0.0 to 1.0 percent of height
+          _sliceHeight = 0.1 + (_random.nextDouble() * 0.2); // 10% to 30% height
+          _sliceOffsetX = (_random.nextDouble() - 0.5) * 20; // Shift left or right
+        });
         
-        _xOffsetSecondary = (_random.nextDouble() * 8.0) - 4.0;
-        _yOffsetSecondary = (_random.nextDouble() * 4.0) - 2.0;
-        
-        // Random opacity to make it flicker
-        _opacityPrimary = 0.4 + (_random.nextDouble() * 0.6);
-        _opacitySecondary = 0.4 + (_random.nextDouble() * 0.6);
-        
-        // Random slice clipping to simulate tearing
-        if (_random.nextDouble() > 0.5) {
-          _clipTop = _random.nextDouble() * 0.5;
-          _clipBottom = _clipTop + 0.1 + (_random.nextDouble() * 0.4);
-        } else {
-          _clipTop = 0.0;
-          _clipBottom = 1.0;
-        }
-      });
+        // Reset the slice quickly after it happens
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted) {
+            setState(() {
+              _sliceHeight = 0; // Hide slice
+            });
+          }
+        });
+      }
     });
   }
 
-  void _stopGlitching() {
-    if (_glitchTimer.isActive) {
-      _glitchTimer.cancel();
-    }
+  void _stopGlitch() {
+    _glitchTimer?.cancel();
+    _sliceTimer?.cancel();
     setState(() {
-      _xOffsetPrimary = 0.0;
-      _yOffsetPrimary = 0.0;
-      _xOffsetSecondary = 0.0;
-      _yOffsetSecondary = 0.0;
-      _opacityPrimary = 0.0;
-      _opacitySecondary = 0.0;
-      _clipTop = 0.0;
-      _clipBottom = 1.0;
+      _cyanOffsetX = 0;
+      _cyanOffsetY = 0;
+      _magentaOffsetX = 0;
+      _magentaOffsetY = 0;
+      _sliceHeight = 0;
     });
   }
 
   @override
   void dispose() {
-    if (_glitchTimer.isActive) {
-      _glitchTimer.cancel();
-    }
+    _glitchTimer?.cancel();
+    _sliceTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Primary Glitch Layer (e.g. Red)
-        if (widget.isGlitching)
+    // Determine the baseline dimensions of the text to calculate slice coordinates
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(text: widget.text, style: widget.style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    
+    final double textHeight = textPainter.size.height;
+    final double textWidth = textPainter.size.width;
+
+    return SizedBox(
+      width: textWidth + 40, // padding for glitch shifting
+      height: textHeight + 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // BOTTOM LAYER: Secondary Color (Magenta) shifted
           Transform.translate(
-            offset: Offset(_xOffsetPrimary, _yOffsetPrimary),
-            child: Opacity(
-              opacity: _opacityPrimary,
-              child: ClipRect(
-                clipper: _GlitchClipper(_clipTop, _clipBottom),
-                child: Text(
-                  widget.text,
-                  style: widget.style.copyWith(color: widget.primaryGlitchColor),
-                ),
-              ),
+            offset: Offset(_magentaOffsetX, _magentaOffsetY),
+            child: Text(
+              widget.text,
+              style: widget.style.copyWith(color: widget.secondaryColor),
             ),
           ),
           
-        // Secondary Glitch Layer (e.g. Cyan)
-        if (widget.isGlitching)
+          // MIDDLE LAYER: Primary Color (Cyan) shifted
           Transform.translate(
-            offset: Offset(_xOffsetSecondary, _yOffsetSecondary),
-            child: Opacity(
-              opacity: _opacitySecondary,
-              child: ClipRect(
-                clipper: _GlitchClipper(1.0 - _clipBottom, 1.0 - _clipTop),
-                child: Text(
-                  widget.text,
-                  style: widget.style.copyWith(color: widget.secondaryGlitchColor),
-                ),
-              ),
+            offset: Offset(_cyanOffsetX, _cyanOffsetY),
+            child: Text(
+              widget.text,
+              style: widget.style.copyWith(color: widget.primaryColor),
             ),
           ),
           
-        // The actual text (Base Layer)
-        // We also clip the base text occasionally to simulate digital tearing
-        ClipRect(
-          clipper: widget.isGlitching && _clipTop > 0.0 
-              ? _GlitchClipper(0.0, _clipTop) // Only show top part when tearing
-              : _GlitchClipper(0.0, 1.0), // Show full text normally
-          child: Text(
+          // TOP LAYER: The actual white text
+          Text(
             widget.text,
             style: widget.style,
           ),
-        ),
-        
-        // Bottom part of the tear
-        if (widget.isGlitching && _clipTop > 0.0)
-          Transform.translate(
-            offset: Offset((_random.nextDouble() * 4.0) - 2.0, 0),
-            child: ClipRect(
-              clipper: _GlitchClipper(_clipBottom, 1.0),
-              child: Text(
-                widget.text,
-                style: widget.style,
+          
+          // SLICE LAYER: The horizontally torn chunk of text
+          // We use ClipRect to only show a specific horizontal sliver of the text,
+          // and then we physically translate that sliver to the side
+          if (_sliceHeight > 0)
+            Positioned.fill(
+              child: ClipRect(
+                clipper: _GlitchSliceClipper(
+                  sliceTopPercent: _sliceY,
+                  sliceHeightPercent: _sliceHeight,
+                ),
+                child: Transform.translate(
+                  offset: Offset(_sliceOffsetX, 0),
+                  child: Center(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // The slice also needs the RGB shifting for maximum effect
+                        Transform.translate(
+                          offset: Offset(_magentaOffsetX * 1.5, _magentaOffsetY),
+                          child: Text(
+                            widget.text,
+                            style: widget.style.copyWith(color: widget.secondaryColor),
+                          ),
+                        ),
+                        Transform.translate(
+                          offset: Offset(_cyanOffsetX * 1.5, _cyanOffsetY),
+                          child: Text(
+                            widget.text,
+                            style: widget.style.copyWith(color: widget.primaryColor),
+                          ),
+                        ),
+                        Text(
+                          widget.text,
+                          style: widget.style,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          )
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _GlitchClipper extends CustomClipper<Rect> {
-  final double topPercent;
-  final double bottomPercent;
+class _GlitchSliceClipper extends CustomClipper<Rect> {
+  final double sliceTopPercent;
+  final double sliceHeightPercent;
 
-  _GlitchClipper(this.topPercent, this.bottomPercent);
+  _GlitchSliceClipper({
+    required this.sliceTopPercent,
+    required this.sliceHeightPercent,
+  });
 
   @override
   Rect getClip(Size size) {
-    return Rect.fromLTRB(
-      0.0,
-      size.height * topPercent,
-      size.width,
-      size.height * bottomPercent,
-    );
+    final double top = size.height * sliceTopPercent;
+    final double height = size.height * sliceHeightPercent;
+    
+    // We only clip the Y axis, leave the X axis fully open
+    return Rect.fromLTWH(0, top, size.width, height);
   }
 
   @override
-  bool shouldReclip(covariant _GlitchClipper oldClipper) {
-    return oldClipper.topPercent != topPercent || oldClipper.bottomPercent != bottomPercent;
+  bool shouldReclip(covariant _GlitchSliceClipper oldClipper) {
+    return oldClipper.sliceTopPercent != sliceTopPercent ||
+           oldClipper.sliceHeightPercent != sliceHeightPercent;
   }
 }
