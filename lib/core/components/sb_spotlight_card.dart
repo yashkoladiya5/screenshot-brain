@@ -26,12 +26,12 @@ class SbSpotlightCard extends StatefulWidget {
   State<SbSpotlightCard> createState() => _SbSpotlightCardState();
 }
 
-class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProviderStateMixin {
+class _SbSpotlightCardState extends State<SbSpotlightCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  
+
   Offset _pointerPosition = Offset.zero;
-  bool _isHovering = false;
 
   @override
   void initState() {
@@ -40,7 +40,7 @@ class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
       curve: Curves.easeOut,
@@ -55,7 +55,6 @@ class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProv
 
   void _onPointerMove(PointerEvent event) {
     setState(() {
-      _isHovering = true;
       _pointerPosition = event.localPosition;
     });
     if (!_fadeController.isAnimating && _fadeController.value != 1.0) {
@@ -64,28 +63,25 @@ class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProv
   }
 
   void _onPointerExit(PointerEvent event) {
-    setState(() {
-      _isHovering = false;
-    });
     _fadeController.reverse();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = widget.backgroundColor ?? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
-    final border = widget.borderColor ?? theme.colorScheme.outlineVariant.withValues(alpha: 0.2);
+    final bg =
+        widget.backgroundColor ??
+        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+    final border =
+        widget.borderColor ??
+        theme.colorScheme.outlineVariant.withValues(alpha: 0.2);
 
     return MouseRegion(
       onHover: _onPointerMove,
       onExit: _onPointerExit,
       child: GestureDetector(
-        onPanUpdate: (details) => _onPointerMove(
-          PointerHoverEvent(
-            position: details.globalPosition, 
-            localPosition: details.localPosition
-          )
-        ),
+        onPanUpdate: (details) =>
+            _onPointerMove(PointerHoverEvent(position: details.localPosition)),
         onPanEnd: (_) => _onPointerExit(const PointerExitEvent()),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -101,29 +97,37 @@ class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProv
                   border: Border.all(color: border),
                 ),
               ),
-              
+
               // 2. The Animated Spotlight Overlay
               Positioned.fill(
                 child: AnimatedBuilder(
                   animation: _fadeAnimation,
                   builder: (context, child) {
-                    if (_fadeAnimation.value == 0.0) return const SizedBox.shrink();
-                    
+                    if (_fadeAnimation.value == 0.0) {
+                      return const SizedBox.shrink();
+                    }
+
                     return Opacity(
                       opacity: _fadeAnimation.value,
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: RadialGradient(
                             center: FractionalOffset(
-                              (_pointerPosition.dx / widget.width).clamp(0.0, 1.0),
-                              (_pointerPosition.dy / widget.height).clamp(0.0, 1.0),
+                              (_pointerPosition.dx / widget.width).clamp(
+                                0.0,
+                                1.0,
+                              ),
+                              (_pointerPosition.dy / widget.height).clamp(
+                                0.0,
+                                1.0,
+                              ),
                             ),
                             radius: 1.5,
-                            colors: [
-                              widget.spotlightColor,
-                              Colors.transparent,
-                            ],
-                            stops: const [0.0, 0.4], // 0.4 ensures a tight, focused beam
+                            colors: [widget.spotlightColor, Colors.transparent],
+                            stops: const [
+                              0.0,
+                              0.4,
+                            ], // 0.4 ensures a tight, focused beam
                           ),
                         ),
                       ),
@@ -131,7 +135,7 @@ class _SbSpotlightCardState extends State<SbSpotlightCard> with SingleTickerProv
                   },
                 ),
               ),
-              
+
               // 3. The Content Overlay
               // Placed on top so the text/content is drawn *over* the spotlight
               Positioned.fill(

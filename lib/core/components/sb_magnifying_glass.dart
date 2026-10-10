@@ -29,11 +29,13 @@ class _SbMagnifyingGlassState extends State<SbMagnifyingGlass> {
     // We need to convert global position to local position within this widget
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final localPosition = renderBox.globalToLocal(globalPosition);
-    
+
     // Constrain to bounds
     final size = renderBox.size;
-    if (localPosition.dx < 0 || localPosition.dx > size.width || 
-        localPosition.dy < 0 || localPosition.dy > size.height) {
+    if (localPosition.dx < 0 ||
+        localPosition.dx > size.width ||
+        localPosition.dy < 0 ||
+        localPosition.dy > size.height) {
       setState(() {
         _isMagnifying = false;
       });
@@ -57,7 +59,7 @@ class _SbMagnifyingGlassState extends State<SbMagnifyingGlass> {
         children: [
           // 1. Base content
           widget.child,
-          
+
           // 2. Magnifying Glass
           if (_isMagnifying && _magnifierPosition != null)
             Positioned(
@@ -79,22 +81,29 @@ class _SbMagnifyingGlassState extends State<SbMagnifyingGlass> {
                         blurRadius: 10,
                         spreadRadius: 2,
                         offset: const Offset(0, 5),
-                      )
+                      ),
                     ],
                   ),
                   child: ClipOval(
                     child: BackdropFilter(
                       // The ImageFilter.matrix applies the magnification transformation
                       filter: ui.ImageFilter.matrix(
-                        Matrix4.identity()
-                          // Move origin to center of magnifier to scale from center
-                          ..translate(_magnifierPosition!.dx, _magnifierPosition!.dy)
-                          ..scale(widget.magnificationScale)
-                          ..translate(-_magnifierPosition!.dx, -_magnifierPosition!.dy)
-                          .storage,
+                        (Matrix4.identity()
+                              // Move origin to center of magnifier to scale from center
+                              ..translate(
+                                _magnifierPosition!.dx,
+                                _magnifierPosition!.dy,
+                              )
+                              ..scale(widget.magnificationScale)
+                              ..translate(
+                                -_magnifierPosition!.dx,
+                                -_magnifierPosition!.dy,
+                              ))
+                            .storage,
                       ),
                       child: Container(
-                        color: Colors.transparent, // Required to make BackdropFilter work
+                        color: Colors
+                            .transparent, // Required to make BackdropFilter work
                       ),
                     ),
                   ),

@@ -17,7 +17,8 @@ class SbMagneticButton extends StatefulWidget {
     required this.onPressed,
     this.width = 150.0,
     this.height = 50.0,
-    this.magnetStrength = 0.5, // How far the button pulls towards cursor (0.0 to 1.0)
+    this.magnetStrength =
+        0.5, // How far the button pulls towards cursor (0.0 to 1.0)
     this.backgroundColor,
     this.borderRadius = SBRadius.full,
   });
@@ -26,10 +27,11 @@ class SbMagneticButton extends StatefulWidget {
   State<SbMagneticButton> createState() => _SbMagneticButtonState();
 }
 
-class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerProviderStateMixin {
+class _SbMagneticButtonState extends State<SbMagneticButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _resetController;
   late Animation<Offset> _resetAnimation;
-  
+
   Offset _magnetOffset = Offset.zero;
   bool _isHovering = false;
   final GlobalKey _buttonKey = GlobalKey();
@@ -41,15 +43,12 @@ class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerPr
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    
-    _resetAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.elasticOut,
-    ));
-    
+
+    _resetAnimation = Tween<Offset>(begin: Offset.zero, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.elasticOut),
+        );
+
     _resetController.addListener(() {
       if (_resetController.isAnimating) {
         setState(() {
@@ -66,23 +65,27 @@ class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerPr
   }
 
   void _onPointerMove(PointerEvent event) {
-    final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? renderBox =
+        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    
+
     if (_resetController.isAnimating) {
       _resetController.stop();
     }
-    
+
     // Calculate distance from center of the button
     final size = renderBox.size;
     final center = Offset(size.width / 2, size.height / 2);
     final dx = event.localPosition.dx - center.dx;
     final dy = event.localPosition.dy - center.dy;
-    
+
     setState(() {
       _isHovering = true;
       // Pull button towards cursor based on strength
-      _magnetOffset = Offset(dx * widget.magnetStrength, dy * widget.magnetStrength);
+      _magnetOffset = Offset(
+        dx * widget.magnetStrength,
+        dy * widget.magnetStrength,
+      );
     });
   }
 
@@ -90,16 +93,13 @@ class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerPr
     setState(() {
       _isHovering = false;
     });
-    
+
     // Animate back to center using elastic curve
-    _resetAnimation = Tween<Offset>(
-      begin: _magnetOffset,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.elasticOut,
-    ));
-    
+    _resetAnimation = Tween<Offset>(begin: _magnetOffset, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.elasticOut),
+        );
+
     _resetController.forward(from: 0.0);
   }
 
@@ -107,21 +107,17 @@ class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerPr
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bg = widget.backgroundColor ?? theme.colorScheme.primary;
-    
-    final activeOffset = _isHovering || _resetController.isAnimating 
-        ? _magnetOffset 
+
+    final activeOffset = _isHovering || _resetController.isAnimating
+        ? _magnetOffset
         : Offset.zero;
 
     return MouseRegion(
       onHover: _onPointerMove,
       onExit: (_) => _onPointerExit(),
       child: GestureDetector(
-        onPanUpdate: (details) => _onPointerMove(
-          PointerHoverEvent(
-            position: details.globalPosition, 
-            localPosition: details.localPosition
-          )
-        ),
+        onPanUpdate: (details) =>
+            _onPointerMove(PointerHoverEvent(position: details.localPosition)),
         onPanEnd: (_) => _onPointerExit(),
         onTap: widget.onPressed,
         child: Container(
@@ -149,7 +145,7 @@ class _SbMagneticButtonState extends State<SbMagneticButton> with SingleTickerPr
                       _isHovering ? -activeOffset.dx * 0.5 : 0,
                       _isHovering ? -activeOffset.dy * 0.5 + 4 : 4,
                     ),
-                  )
+                  ),
                 ],
               ),
               child: Material(
