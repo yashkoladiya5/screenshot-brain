@@ -15,7 +15,10 @@ class SbNeonButton extends StatefulWidget {
     required this.onPressed,
     this.neonColor = Colors.cyanAccent,
     this.borderRadius = SBRadius.md,
-    this.padding = const EdgeInsets.symmetric(horizontal: SBSpacing.xl, vertical: SBSpacing.md),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: SBSpacing.xl,
+      vertical: SBSpacing.md,
+    ),
     this.isPulsing = true,
   });
 
@@ -23,7 +26,8 @@ class SbNeonButton extends StatefulWidget {
   State<SbNeonButton> createState() => _SbNeonButtonState();
 }
 
-class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderStateMixin {
+class _SbNeonButtonState extends State<SbNeonButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _glowAnimation;
   bool _isHovered = false;
@@ -37,15 +41,16 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
       duration: const Duration(milliseconds: 1500),
     );
 
-    _glowAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _glowAnimation = Tween<double>(
+      begin: 0.6,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     if (widget.isPulsing) {
       _controller.repeat(reverse: true);
     }
   }
-  
+
   @override
   void didUpdateWidget(SbNeonButton oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -70,8 +75,8 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
     return AnimatedBuilder(
       animation: _glowAnimation,
       builder: (context, child) {
-        final glowIntensity = _isPressed 
-            ? 1.5 
+        final glowIntensity = _isPressed
+            ? 1.5
             : (_isHovered ? 1.2 : _glowAnimation.value);
 
         return MouseRegion(
@@ -89,7 +94,8 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
               curve: Curves.easeOut,
               padding: widget.padding,
               decoration: BoxDecoration(
-                color: Colors.transparent, // Neon is usually hollow or dark inside
+                color:
+                    Colors.transparent, // Neon is usually hollow or dark inside
                 borderRadius: BorderRadius.circular(widget.borderRadius),
                 border: Border.all(
                   color: widget.neonColor.withValues(alpha: 0.8),
@@ -98,20 +104,29 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
                 boxShadow: [
                   // Outer Glow
                   BoxShadow(
-                    color: widget.neonColor.withValues(alpha: 0.4 * glowIntensity),
+                    color: widget.neonColor.withValues(
+                      alpha: 0.4 * glowIntensity,
+                    ),
                     blurRadius: 15.0 * glowIntensity,
                     spreadRadius: 2.0 * glowIntensity,
                   ),
                   BoxShadow(
-                    color: widget.neonColor.withValues(alpha: 0.2 * glowIntensity),
+                    color: widget.neonColor.withValues(
+                      alpha: 0.2 * glowIntensity,
+                    ),
                     blurRadius: 30.0 * glowIntensity,
                     spreadRadius: 5.0 * glowIntensity,
                   ),
-                  // Inner Glow
+                  // Inner Glow — BoxShadow has no `inset` flag in this SDK,
+                  // but BlurStyle.inner paints a shadow that fades inward,
+                  // which is exactly the neon inner-glow we want (the box
+                  // fill is transparent, so nothing covers it).
                   BoxShadow(
-                    color: widget.neonColor.withValues(alpha: 0.3 * glowIntensity),
+                    color: widget.neonColor.withValues(
+                      alpha: 0.3 * glowIntensity,
+                    ),
                     blurRadius: 10.0,
-                    inset: true,
+                    blurStyle: BlurStyle.inner,
                   ),
                 ],
               ),
@@ -123,7 +138,7 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
                     Shadow(
                       color: widget.neonColor.withValues(alpha: 0.8),
                       blurRadius: 8.0,
-                    )
+                    ),
                   ],
                 ),
                 child: widget.child,
@@ -132,28 +147,6 @@ class _SbNeonButtonState extends State<SbNeonButton> with SingleTickerProviderSt
           ),
         );
       },
-    );
-  }
-}
-
-// Helper extension to add inset to BoxShadow which Flutter lacks by default for inner shadows
-extension _InnerShadow on BoxShadow {
-  BoxShadow copyWith({
-    Color? color,
-    Offset? offset,
-    double? blurRadius,
-    double? spreadRadius,
-    BlurStyle? blurStyle,
-    bool? inset,
-  }) {
-    // Note: True inner shadow requires CustomPainter, but for the neon effect
-    // a tight blur with no offset simulates it well enough inside a bordered box
-    return BoxShadow(
-      color: color ?? this.color,
-      offset: offset ?? this.offset,
-      blurRadius: blurRadius ?? this.blurRadius,
-      spreadRadius: spreadRadius ?? this.spreadRadius,
-      blurStyle: inset == true ? BlurStyle.inner : (blurStyle ?? this.blurStyle),
     );
   }
 }

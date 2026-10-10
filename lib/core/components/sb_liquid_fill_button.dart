@@ -27,10 +27,11 @@ class SbLiquidFillButton extends StatefulWidget {
   State<SbLiquidFillButton> createState() => _SbLiquidFillButtonState();
 }
 
-class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProviderStateMixin {
+class _SbLiquidFillButtonState extends State<SbLiquidFillButton>
+    with TickerProviderStateMixin {
   late AnimationController _fillController;
   late AnimationController _waveController;
-  
+
   bool _isFilled = false;
 
   @override
@@ -41,7 +42,7 @@ class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProv
       vsync: this,
       duration: widget.fillDuration,
     );
-    
+
     _fillController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() => _isFilled = true);
@@ -69,24 +70,31 @@ class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProv
     }
   }
 
-  void _onPointerUp(PointerUpEvent event) {
+  void _releaseFill() {
     if (!_isFilled) {
       _fillController.reverse();
     }
   }
+
+  void _onPointerUp(PointerUpEvent event) => _releaseFill();
+
+  // A cancelled pointer behaves like an early release: drain the liquid back.
+  void _onPointerCancel(PointerCancelEvent event) => _releaseFill();
 
   @override
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: _onPointerDown,
       onPointerUp: _onPointerUp,
-      onPointerCancel: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
       child: AnimatedBuilder(
         animation: _fillController,
         builder: (context, child) {
           // Add a subtle bounce effect when the button is fully filled
-          final double scale = _isFilled ? 1.05 : 1.0 - (_fillController.value * 0.05);
-          
+          final double scale = _isFilled
+              ? 1.05
+              : 1.0 - (_fillController.value * 0.05);
+
           return Transform.scale(
             scale: scale,
             child: Container(
@@ -97,11 +105,13 @@ class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProv
                 borderRadius: BorderRadius.circular(widget.height / 2),
                 boxShadow: [
                   BoxShadow(
-                    color: widget.liquidColor.withValues(alpha: _fillController.value * 0.5),
+                    color: widget.liquidColor.withValues(
+                      alpha: _fillController.value * 0.5,
+                    ),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
-                  )
-                ]
+                  ),
+                ],
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(
@@ -119,10 +129,10 @@ class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProv
                             liquidColor: widget.liquidColor,
                           ),
                         );
-                      }
+                      },
                     ),
                   ),
-                  
+
                   // The text overlay
                   Text(
                     _isFilled ? 'COMPLETE!' : widget.text,
@@ -134,17 +144,19 @@ class _SbLiquidFillButtonState extends State<SbLiquidFillButton> with TickerProv
                       // Subtle glow on the text based on fill level
                       shadows: [
                         Shadow(
-                          color: widget.liquidColor.withValues(alpha: _fillController.value),
+                          color: widget.liquidColor.withValues(
+                            alpha: _fillController.value,
+                          ),
                           blurRadius: 8,
-                        )
-                      ]
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           );
-        }
+        },
       ),
     );
   }
@@ -168,49 +180,58 @@ class _LiquidPainter extends CustomPainter {
     final Paint paint = Paint()
       ..color = liquidColor
       ..style = PaintingStyle.fill;
-      
+
     final Paint darkPaint = Paint()
       ..color = liquidColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
-    // Y coordinate of the "water level". 
+    // Y coordinate of the "water level".
     // Fill level 0 = size.height (bottom)
     // Fill level 1 = 0 (top)
     final double waterLevel = size.height * (1.0 - fillLevel);
-    
+
     // As it gets fuller, the waves should calm down.
     final double waveHeight = 15.0 * (1.0 - fillLevel).clamp(0.0, 1.0);
 
     // Draw the background darker wave (offset phase)
     _drawWave(canvas, size, waterLevel, waveHeight, wavePhase + 0.5, darkPaint);
-    
+
     // Draw the foreground main wave
     _drawWave(canvas, size, waterLevel, waveHeight, wavePhase, paint);
   }
-  
-  void _drawWave(Canvas canvas, Size size, double waterLevel, double waveHeight, double phase, Paint paint) {
+
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    double waterLevel,
+    double waveHeight,
+    double phase,
+    Paint paint,
+  ) {
     final Path path = Path();
     path.moveTo(0, size.height);
     path.lineTo(0, waterLevel);
-    
+
     // Draw the wavy surface
     for (double i = 0; i <= size.width; i++) {
       // 2 * pi for a full sine wave across the width. We use 1.5 waves.
       final double normalizedX = i / size.width;
-      final double angle = (normalizedX * 1.5 * 2 * math.pi) + (phase * 2 * math.pi);
-      
+      final double angle =
+          (normalizedX * 1.5 * 2 * math.pi) + (phase * 2 * math.pi);
+
       final double y = waterLevel + math.sin(angle) * waveHeight;
       path.lineTo(i, y);
     }
-    
+
     path.lineTo(size.width, size.height);
     path.close();
-    
+
     canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _LiquidPainter oldDelegate) {
-    return oldDelegate.fillLevel != fillLevel || oldDelegate.wavePhase != wavePhase;
+    return oldDelegate.fillLevel != fillLevel ||
+        oldDelegate.wavePhase != wavePhase;
   }
 }
