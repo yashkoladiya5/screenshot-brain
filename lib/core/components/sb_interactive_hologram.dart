@@ -19,9 +19,10 @@ class SbInteractiveHologram extends StatefulWidget {
   State<SbInteractiveHologram> createState() => _SbInteractiveHologramState();
 }
 
-class _SbInteractiveHologramState extends State<SbInteractiveHologram> with SingleTickerProviderStateMixin {
+class _SbInteractiveHologramState extends State<SbInteractiveHologram>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  
+
   // For interactive 3D rotation
   double _rotationX = 0;
   double _rotationY = 0;
@@ -46,7 +47,7 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
     setState(() {
       _rotationY += details.delta.dx * 0.01;
       _rotationX -= details.delta.dy * 0.01;
-      
+
       // Limit vertical rotation to not flip entirely upside down
       _rotationX = _rotationX.clamp(-math.pi / 4, math.pi / 4);
     });
@@ -54,7 +55,7 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
 
   void _onPanEnd(DragEndDetails details) {
     // Slowly return to center when released
-    // Instead of snapping, we'll just let it stay where the user left it, 
+    // Instead of snapping, we'll just let it stay where the user left it,
     // but maybe auto-rotate slightly over time. For now, leaving it is fine.
   }
 
@@ -74,11 +75,12 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
               // Most of the time opacity is 1.0, but occasionally it flickers
               final double time = _controller.value;
               double opacity = 0.85;
-              
+
               if ((time > 0.3 && time < 0.32) || (time > 0.75 && time < 0.78)) {
                 opacity = 0.3; // Major flicker
               } else if (math.sin(time * 100) > 0.9) {
-                opacity = 0.6 + (math.Random().nextDouble() * 0.4); // Micro flicker
+                opacity =
+                    0.6 + (math.Random().nextDouble() * 0.4); // Micro flicker
               }
 
               // 2. Base 3D Transform
@@ -97,7 +99,8 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
                     Opacity(
                       opacity: opacity,
                       child: ShaderMask(
-                        blendMode: BlendMode.srcATop, // Keeps child's alpha, colors it with the shader
+                        blendMode: BlendMode
+                            .srcATop, // Keeps child's alpha, colors it with the shader
                         shaderCallback: (bounds) {
                           // Apply scanlines
                           return LinearGradient(
@@ -113,7 +116,7 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
                         child: widget.child,
                       ),
                     ),
-                    
+
                     // CRT Scanline Overlay Effect
                     Opacity(
                       opacity: opacity * 0.5,
@@ -126,7 +129,7 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
                         ),
                       ),
                     ),
-                    
+
                     // Hologram Base Emitter Glow (at the bottom)
                     Positioned(
                       bottom: -20,
@@ -135,21 +138,23 @@ class _SbInteractiveHologramState extends State<SbInteractiveHologram> with Sing
                       height: 40,
                       child: Container(
                         decoration: BoxDecoration(
-                          shape: BoxShape.ellipse,
+                          shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: widget.hologramColor.withValues(alpha: opacity * 0.6),
+                              color: widget.hologramColor.withValues(
+                                alpha: opacity * 0.6,
+                              ),
                               blurRadius: 30,
                               spreadRadius: 10,
-                            )
-                          ]
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
               );
-            }
+            },
           ),
         ),
       ),
@@ -161,10 +166,7 @@ class _ScanlinePainter extends CustomPainter {
   final Color color;
   final double scanPosition; // 0.0 to 1.0
 
-  _ScanlinePainter({
-    required this.color,
-    required this.scanPosition,
-  });
+  _ScanlinePainter({required this.color, required this.scanPosition});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -173,17 +175,22 @@ class _ScanlinePainter extends CustomPainter {
       ..color = color.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
-      
+
     for (double i = 0; i < size.height; i += 4.0) {
       canvas.drawLine(Offset(0, i), Offset(size.width, i), linePaint);
     }
 
     // 2. Draw the thick, bright scanning laser that moves top to bottom
     final double currentY = size.height * scanPosition;
-    
+
     // The laser consists of a bright core and a faded gradient trail
-    final Rect laserRect = Rect.fromLTRB(0, currentY - 20, size.width, currentY + 2);
-    
+    final Rect laserRect = Rect.fromLTRB(
+      0,
+      currentY - 20,
+      size.width,
+      currentY + 2,
+    );
+
     final Paint laserPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -195,14 +202,18 @@ class _ScanlinePainter extends CustomPainter {
         ],
         stops: const [0.0, 0.8, 1.0],
       ).createShader(laserRect);
-      
+
     canvas.drawRect(laserRect, laserPaint);
-    
+
     // Draw the absolute brightest line at the tip
     final Paint tipPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.8)
       ..strokeWidth = 1.5;
-    canvas.drawLine(Offset(0, currentY), Offset(size.width, currentY), tipPaint);
+    canvas.drawLine(
+      Offset(0, currentY),
+      Offset(size.width, currentY),
+      tipPaint,
+    );
   }
 
   @override

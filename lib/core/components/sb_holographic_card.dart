@@ -25,11 +25,12 @@ class SbHolographicCard extends StatefulWidget {
   State<SbHolographicCard> createState() => _SbHolographicCardState();
 }
 
-class _SbHolographicCardState extends State<SbHolographicCard> with SingleTickerProviderStateMixin {
+class _SbHolographicCardState extends State<SbHolographicCard>
+    with SingleTickerProviderStateMixin {
   // We use touch positions to tilt the card and shift the holo gradient
   double _tiltX = 0;
   double _tiltY = 0;
-  
+
   // Animation controller for when the user releases the card, returning it to center
   late AnimationController _restoreController;
   late Animation<double> _restoreAnimation;
@@ -41,12 +42,13 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    
+
     _restoreAnimation = CurvedAnimation(
       parent: _restoreController,
-      curve: Curves.easeOutElastic,
+      // SDK name for the "ease out elastic" bounce-back curve.
+      curve: Curves.elasticOut,
     );
-    
+
     _restoreController.addListener(() {
       setState(() {
         _tiltX = _tiltX * (1.0 - _restoreAnimation.value);
@@ -65,12 +67,12 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
     if (_restoreController.isAnimating) {
       _restoreController.stop();
     }
-    
+
     setState(() {
       // Convert drag deltas into tilt degrees (max ~20 degrees)
       _tiltX -= details.delta.dy * 0.5;
       _tiltY += details.delta.dx * 0.5;
-      
+
       _tiltX = _tiltX.clamp(-20.0, 20.0);
       _tiltY = _tiltY.clamp(-20.0, 20.0);
     });
@@ -86,7 +88,7 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
     // When tilted left, gradient shifts right. When tilted up, gradient shifts down.
     final double gradientShiftX = -(_tiltY / 20.0);
     final double gradientShiftY = -(_tiltX / 20.0);
-    
+
     return GestureDetector(
       onPanUpdate: _onPanUpdate,
       onPanEnd: _onPanEnd,
@@ -112,7 +114,7 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
                 spreadRadius: 2,
                 offset: Offset(_tiltY, _tiltX * 1.5),
               ),
-            ]
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(
@@ -120,7 +122,7 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
             children: [
               // 1. The base child content
               widget.child,
-              
+
               // 2. The holographic foil layer
               // We use a sweep gradient combined with a linear gradient and BlendMode
               // to create an iridescent foil effect that reacts to the tilt!
@@ -130,8 +132,14 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment(gradientShiftX - 1.0, gradientShiftY - 1.0),
-                        end: Alignment(gradientShiftX + 1.0, gradientShiftY + 1.0),
+                        begin: Alignment(
+                          gradientShiftX - 1.0,
+                          gradientShiftY - 1.0,
+                        ),
+                        end: Alignment(
+                          gradientShiftX + 1.0,
+                          gradientShiftY + 1.0,
+                        ),
                         colors: [
                           widget.foilColor1.withValues(alpha: 0.5),
                           widget.foilColor2.withValues(alpha: 0.5),
@@ -144,15 +152,21 @@ class _SbHolographicCardState extends State<SbHolographicCard> with SingleTicker
                   ),
                 ),
               ),
-              
+
               // 3. Glare/Shine overlay
               // A sharp white diagonal line that sweeps across the card based on tilt
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment(gradientShiftX - 1.5, gradientShiftY - 1.5),
-                      end: Alignment(gradientShiftX + 1.5, gradientShiftY + 1.5),
+                      begin: Alignment(
+                        gradientShiftX - 1.5,
+                        gradientShiftY - 1.5,
+                      ),
+                      end: Alignment(
+                        gradientShiftX + 1.5,
+                        gradientShiftY + 1.5,
+                      ),
                       colors: [
                         Colors.white.withValues(alpha: 0.0),
                         Colors.white.withValues(alpha: 0.0),

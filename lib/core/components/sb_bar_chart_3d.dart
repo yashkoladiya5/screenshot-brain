@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
-import '../design/tokens.dart';
 
 class SbBarChart3DData {
   final String label;
@@ -33,7 +31,7 @@ class SbBarChart3D extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return SizedBox(
       height: height,
       child: Row(
@@ -42,9 +40,9 @@ class SbBarChart3D extends StatelessWidget {
         children: data.map((item) {
           final percentage = (item.value / maxValue).clamp(0.0, 1.0);
           final barHeight = percentage * (height - 40); // 40 for label
-          
+
           final baseColor = item.color ?? theme.colorScheme.primary;
-          
+
           return Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -57,28 +55,32 @@ class SbBarChart3D extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               // 3D Bar
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.0, end: barHeight),
                 duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOutElastic,
+                // Elastic overshoot grow-in. The layout box stays at its final
+                // size while the painter animates, so the bounce renders
+                // without overflowing the surrounding Column.
+                curve: Curves.elasticOut,
                 builder: (context, val, child) {
                   return SizedBox(
                     width: barWidth + depth,
-                    height: val + depth,
+                    height: barHeight + depth,
                     child: CustomPaint(
                       painter: _Bar3DPainter(
                         color: baseColor,
                         barWidth: barWidth,
                         barHeight: val,
+                        fullBarHeight: barHeight,
                         depth: depth,
                       ),
                     ),
                   );
                 },
               ),
-              
+
               const SizedBox(height: 8),
               // Bottom label
               Text(
@@ -99,12 +101,14 @@ class _Bar3DPainter extends CustomPainter {
   final Color color;
   final double barWidth;
   final double barHeight;
+  final double fullBarHeight;
   final double depth;
 
   _Bar3DPainter({
     required this.color,
     required this.barWidth,
     required this.barHeight,
+    this.fullBarHeight = 0.0,
     required this.depth,
   });
 
@@ -112,10 +116,22 @@ class _Bar3DPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (barHeight <= 0) return;
 
+    // Keep the bar's bottom anchored to the box bottom while the animated
+    // height bounces above/below the final value (elastic overshoot).
+    canvas.save();
+    canvas.translate(
+      0,
+      (fullBarHeight - barHeight).clamp(-size.height, size.height),
+    );
+
     // Calculate darker/lighter shades
     final hsl = HSLColor.fromColor(color);
-    final topColor = hsl.withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0)).toColor();
-    final rightColor = hsl.withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0)).toColor();
+    final topColor = hsl
+        .withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0))
+        .toColor();
+    final rightColor = hsl
+        .withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0))
+        .toColor();
 
     // 1. Front Face
     final frontPaint = Paint()..color = color;
@@ -141,11 +157,11 @@ class _Bar3DPainter extends CustomPainter {
       ..lineTo(barWidth, barHeight + depth)
       ..close();
     canvas.drawPath(rightPath, rightPaint);
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant _Bar3DPainter oldDelegate) {
-    return oldDelegate.barHeight != barHeight || 
-           oldDelegate.color != color;
+    return oldDelegate.barHeight != barHeight || oldDelegate.color != color;
   }
 }
