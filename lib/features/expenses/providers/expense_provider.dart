@@ -6,31 +6,121 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   return ExpenseRepository();
 });
 
+/// Normalizes a raw expense search query: trim, collapse whitespace,
+/// lowercase for case-insensitive matching.
+String normalizeExpenseQuery(String raw) =>
+    raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+/// Immutable one-pass aggregation over the expense list.
+///
+/// Built from a single iteration so total, category breakdown and the
+/// recent-N list never trigger separate database scans.
+class ExpenseSnapshot {
+  static const int recentLimit = 10;
+
+  final List<ExpenseItem> expenses;
+  final double total;
+  final Map<String, double> byCategory;
+  final List<ExpenseItem> recent;
+
+  /// Sum of amounts whose expense date falls in the current calendar month.
+  final double monthlyTotal;
+
+  const ExpenseSnapshot._({
+    required this.expenses,
+    required this.total,
+    required this.byCategory,
+    required this.recent,
+    required this.monthlyTotal,
+  });
+
+  factory ExpenseSnapshot.from(Iterable<ExpenseItem> source, {DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    double total = 0;
+    double monthlyTotal = 0;
+    final byCategory = <String, double>{};
+    final items = <ExpenseItem>[];
+    for (final expense in source) {
+      items.add(expense);
+      final amount = expense.amount ?? 0;
+      total += amount;
+      final category = expense.category ?? 'Other';
+      byCategory[category] = (byCategory[category] ?? 0) + amount;
+      final date = expense.expenseDate ?? expense.createdAt;
+      if (date.year == reference.year && date.month == reference.month) {
+        monthlyTotal += amount;
+      }
+    }
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return ExpenseSnapshot._(
+      expenses: List<ExpenseItem>.unmodifiable(items),
+      total: total,
+      byCategory: Map<String, double>.unmodifiable(byCategory),
+      recent: List<ExpenseItem>.unmodifiable(items.take(recentLimit)),
+      monthlyTotal: monthlyTotal,
+    );
+  }
+
+  /// Case-insensitive substring search over merchant / category / description.
+  List<ExpenseItem> search(String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return expenses;
+    return expenses.where((e) {
+      return (e.merchant?.toLowerCase().contains(normalizedQuery) ?? false) ||
+          (e.category?.toLowerCase().contains(normalizedQuery) ?? false) ||
+          (e.description?.toLowerCase().contains(normalizedQuery) ?? false);
+    }).toList();
+  }
+}
+
+/// The single source of expense data: one backend scan shared by every
+/// derived provider below (Riverpod deduplicates the in-flight future, so
+/// concurrent watchers never cause duplicate scans).
+/// Errors from the repository propagate as AsyncError instead of being
+/// swallowed.
 final expenseListProvider = FutureProvider<List<ExpenseItem>>((ref) async {
   final repo = ref.read(expenseRepositoryProvider);
   return repo.getAllExpenses();
 });
 
+final expenseSnapshotProvider = FutureProvider<ExpenseSnapshot>((ref) async {
+  final expenses = await ref.watch(expenseListProvider.future);
+  return ExpenseSnapshot.from(expenses);
+});
+
 final expenseTotalProvider = FutureProvider<double>((ref) async {
-  final repo = ref.read(expenseRepositoryProvider);
-  return repo.getTotalExpenses();
+  final snapshot = await ref.watch(expenseSnapshotProvider.future);
+  return snapshot.total;
 });
 
-final expenseByCategoryProvider = FutureProvider<Map<String, double>>((ref) async {
-  final repo = ref.read(expenseRepositoryProvider);
-  return repo.getExpensesByCategory();
+/// Total for the current calendar month, derived from the same snapshot.
+final expenseMonthlyTotalProvider = FutureProvider<double>((ref) async {
+  final snapshot = await ref.watch(expenseSnapshotProvider.future);
+  return snapshot.monthlyTotal;
 });
 
+final expenseByCategoryProvider = FutureProvider<Map<String, double>>((
+  ref,
+) async {
+  final snapshot = await ref.watch(expenseSnapshotProvider.future);
+  return snapshot.byCategory;
+});
+
+/// Most recent [ExpenseSnapshot.recentLimit] expenses, derived from the same
+/// snapshot instead of issuing its own scan.
 final recentExpensesProvider = FutureProvider<List<ExpenseItem>>((ref) async {
-  final repo = ref.read(expenseRepositoryProvider);
-  return repo.getRecentExpenses();
+  final snapshot = await ref.watch(expenseSnapshotProvider.future);
+  return snapshot.recent;
 });
 
 final expenseSearchQueryProvider = StateProvider<String>((ref) => '');
 
-final expenseSearchResultsProvider = FutureProvider<List<ExpenseItem>>((ref) async {
+/// Filters the shared snapshot in memory, so keystrokes no longer hit the
+/// database per character.
+final expenseSearchResultsProvider = FutureProvider<List<ExpenseItem>>((
+  ref,
+) async {
   final query = ref.watch(expenseSearchQueryProvider);
-  if (query.isEmpty) return [];
-  final repo = ref.read(expenseRepositoryProvider);
-  return repo.searchExpenses(query);
+  final normalized = normalizeExpenseQuery(query);
+  final snapshot = await ref.watch(expenseSnapshotProvider.future);
+  return snapshot.search(normalized);
 });
