@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import '../../../services/analytics_service.dart';
 import '../../../services/database_service.dart';
 import '../../../shared/models/expense_model.dart';
 import '../models/expense_item.dart';
@@ -59,6 +60,57 @@ class ExpenseRepository {
 
   Future<void> deleteExpense(int id) async {
     await db.writeTxn(() => db.expenseModels.delete(id));
+  }
+
+  /// Total spent (sum of amounts) with effective expense date inside
+  /// `[start, end]` (inclusive).
+  Future<double> getTotalForPeriod(DateTime start, DateTime end) async {
+    final models = await db.expenseModels
+        .filter()
+        .expenseDateBetween(start, end)
+        .findAll();
+    return AnalyticsService.totalAmount(models, start: start, end: end);
+  }
+
+  /// Month-by-month spending totals between [from] and [to] (inclusive,
+  /// month granularity, gaps filled with zero buckets).
+  Future<List<MonthlyBucket>> getMonthlyBreakdown({
+    required DateTime from,
+    DateTime? to,
+  }) async {
+    final startMonth = AnalyticsService.monthStart(from);
+    final endMonth = AnalyticsService.monthStart(to ?? DateTime.now());
+    final models = await db.expenseModels
+        .filter()
+        .expenseDateBetween(
+          startMonth,
+          DateTime(endMonth.year, endMonth.month + 1, 0, 23, 59, 59),
+        )
+        .findAll();
+    return AnalyticsService.monthlyExpenseSeries(models, from: from, to: to);
+  }
+
+  /// Per-category totals with percentage shares, sorted by total desc.
+  Future<List<CategoryBucket>> getCategoryTotals() async {
+    final models = await db.expenseModels.where().findAll();
+    return AnalyticsService.categoryShares(models);
+  }
+
+  /// Highest-volume merchants by total spend, sorted desc.
+  Future<List<MerchantBucket>> getTopMerchants({int limit = 5}) async {
+    final models = await db.expenseModels.where().findAll();
+    return AnalyticsService.topMerchants(models, limit: limit);
+  }
+
+  /// Removes every expense extracted from the given screenshot.
+  /// Returns the number of rows deleted.
+  Future<int> deleteByScreenshotId(int screenshotId) async {
+    return db.writeTxn(
+      () => db.expenseModels
+          .filter()
+          .screenshotIdEqualTo(screenshotId)
+          .deleteAll(),
+    );
   }
 
   ExpenseItem _toItem(ExpenseModel model) {
