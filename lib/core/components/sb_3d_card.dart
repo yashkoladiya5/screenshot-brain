@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../design/tokens.dart';
 
@@ -25,10 +26,11 @@ class Sb3DCard extends StatefulWidget {
   State<Sb3DCard> createState() => _Sb3DCardState();
 }
 
-class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin {
+class _Sb3DCardState extends State<Sb3DCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _resetController;
   late Animation<Offset> _resetAnimation;
-  
+
   Offset _currentPointerPosition = Offset.zero;
   bool _isHovering = false;
 
@@ -39,15 +41,12 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    
-    _resetAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+
+    _resetAnimation = Tween<Offset>(begin: Offset.zero, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.easeOutCubic),
+        );
+
     _resetController.addListener(() {
       if (_resetController.isAnimating) {
         setState(() {
@@ -77,15 +76,15 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
     setState(() {
       _isHovering = false;
     });
-    
-    _resetAnimation = Tween<Offset>(
-      begin: _currentPointerPosition,
-      end: Offset(widget.width / 2, widget.height / 2),
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+
+    _resetAnimation =
+        Tween<Offset>(
+          begin: _currentPointerPosition,
+          end: Offset(widget.width / 2, widget.height / 2),
+        ).animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.easeOutCubic),
+        );
+
     _resetController.forward(from: 0.0);
   }
 
@@ -96,8 +95,8 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
 
     // Default center if not hovering and not animating
     final center = Offset(widget.width / 2, widget.height / 2);
-    final activePosition = _isHovering || _resetController.isAnimating 
-        ? _currentPointerPosition 
+    final activePosition = _isHovering || _resetController.isAnimating
+        ? _currentPointerPosition
         : center;
 
     // Calculate rotation angles
@@ -118,7 +117,7 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
       ..setEntry(3, 2, 0.001) // perspective
       ..rotateX(rotateX)
       ..rotateY(rotateY);
-      
+
     // Calculate shadow offset based on tilt
     final shadowOffsetX = clampedX * widget.depth;
     final shadowOffsetY = clampedY * widget.depth;
@@ -127,9 +126,8 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
       onHover: (event) => _onPointerMove(event),
       onExit: (event) => _onPointerExit(event),
       child: GestureDetector(
-        onPanUpdate: (details) => _onPointerMove(
-          PointerHoverEvent(position: details.globalPosition, localPosition: details.localPosition)
-        ),
+        onPanUpdate: (details) =>
+            _onPointerMove(PointerHoverEvent(position: details.localPosition)),
         onPanEnd: (details) => _onPointerExit(const PointerExitEvent()),
         child: TweenAnimationBuilder<Matrix4>(
           tween: Matrix4Tween(begin: transform, end: transform),
@@ -151,7 +149,7 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
                       blurRadius: widget.depth,
                       spreadRadius: -5,
                       offset: Offset(-shadowOffsetX, -shadowOffsetY + 10),
-                    )
+                    ),
                   ],
                 ),
                 // Gloss/Reflection effect overlay
@@ -165,13 +163,21 @@ class _Sb3DCardState extends State<Sb3DCard> with SingleTickerProviderStateMixin
                     // Only show gloss if hovering
                     if (_isHovering || _resetController.isAnimating)
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(widget.borderRadius),
+                        borderRadius: BorderRadius.circular(
+                          widget.borderRadius,
+                        ),
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: RadialGradient(
                               center: FractionalOffset(
-                                (activePosition.dx / widget.width).clamp(0.0, 1.0),
-                                (activePosition.dy / widget.height).clamp(0.0, 1.0),
+                                (activePosition.dx / widget.width).clamp(
+                                  0.0,
+                                  1.0,
+                                ),
+                                (activePosition.dy / widget.height).clamp(
+                                  0.0,
+                                  1.0,
+                                ),
                               ),
                               radius: 1.0,
                               colors: [

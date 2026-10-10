@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class Sb3DHoverTilt extends StatefulWidget {
@@ -11,14 +12,15 @@ class Sb3DHoverTilt extends StatefulWidget {
     required this.child,
     this.width = 300,
     this.height = 400,
-    this.maxTilt = 0.2, 
+    this.maxTilt = 0.2,
   });
 
   @override
   State<Sb3DHoverTilt> createState() => _Sb3DHoverTiltState();
 }
 
-class _Sb3DHoverTiltState extends State<Sb3DHoverTilt> with SingleTickerProviderStateMixin {
+class _Sb3DHoverTiltState extends State<Sb3DHoverTilt>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Offset _tilt = Offset.zero;
 
@@ -32,7 +34,8 @@ class _Sb3DHoverTiltState extends State<Sb3DHoverTilt> with SingleTickerProvider
 
     _controller.addListener(() {
       setState(() {
-        _tilt = Offset.lerp(_tilt, Offset.zero, _controller.value) ?? Offset.zero;
+        _tilt =
+            Offset.lerp(_tilt, Offset.zero, _controller.value) ?? Offset.zero;
       });
     });
   }
@@ -45,14 +48,14 @@ class _Sb3DHoverTiltState extends State<Sb3DHoverTilt> with SingleTickerProvider
 
   void _onHover(PointerEvent event) {
     if (!mounted) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final localPosition = renderBox.globalToLocal(event.position);
-    
+
     final double normalizedX = (localPosition.dx / size.width) * 2 - 1;
     final double normalizedY = (localPosition.dy / size.height) * 2 - 1;
-    
+
     setState(() {
       _tilt = Offset(
         -normalizedY * widget.maxTilt,
@@ -83,7 +86,7 @@ class _Sb3DHoverTiltState extends State<Sb3DHoverTilt> with SingleTickerProvider
           return Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001) 
+              ..setEntry(3, 2, 0.001)
               ..rotateX(currentTilt.dx)
               ..rotateY(currentTilt.dy),
             child: Container(
@@ -95,9 +98,12 @@ class _Sb3DHoverTiltState extends State<Sb3DHoverTilt> with SingleTickerProvider
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 20,
-                    offset: Offset(-currentTilt.dy * 40, currentTilt.dx * 40 + 10),
-                  )
-                ]
+                    offset: Offset(
+                      -currentTilt.dy * 40,
+                      currentTilt.dx * 40 + 10,
+                    ),
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16.0),

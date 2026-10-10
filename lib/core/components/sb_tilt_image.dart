@@ -26,10 +26,11 @@ class SbTiltImage extends StatefulWidget {
   State<SbTiltImage> createState() => _SbTiltImageState();
 }
 
-class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStateMixin {
+class _SbTiltImageState extends State<SbTiltImage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _resetController;
   late Animation<Offset> _resetAnimation;
-  
+
   Offset _tiltOffset = Offset.zero;
   bool _isHovering = false;
 
@@ -40,15 +41,12 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
-    _resetAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOutBack,
-    ));
-    
+
+    _resetAnimation = Tween<Offset>(begin: Offset.zero, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.easeOutBack),
+        );
+
     _resetController.addListener(() {
       if (_resetController.isAnimating) {
         setState(() {
@@ -68,11 +66,13 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
     if (_resetController.isAnimating) {
       _resetController.stop();
     }
-    
+
     // Calculate normalized offset from center (-1 to 1)
-    final double dx = (event.localPosition.dx - (size.width / 2)) / (size.width / 2);
-    final double dy = (event.localPosition.dy - (size.height / 2)) / (size.height / 2);
-    
+    final double dx =
+        (event.localPosition.dx - (size.width / 2)) / (size.width / 2);
+    final double dy =
+        (event.localPosition.dy - (size.height / 2)) / (size.height / 2);
+
     setState(() {
       _isHovering = true;
       _tiltOffset = Offset(dx.clamp(-1.0, 1.0), dy.clamp(-1.0, 1.0));
@@ -83,15 +83,12 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
     setState(() {
       _isHovering = false;
     });
-    
-    _resetAnimation = Tween<Offset>(
-      begin: _tiltOffset,
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOutBack,
-    ));
-    
+
+    _resetAnimation = Tween<Offset>(begin: _tiltOffset, end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _resetController, curve: Curves.easeOutBack),
+        );
+
     _resetController.forward(from: 0.0);
   }
 
@@ -99,13 +96,15 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double width = widget.width == double.infinity ? constraints.maxWidth : widget.width;
-        
+        final double width = widget.width == double.infinity
+            ? constraints.maxWidth
+            : widget.width;
+
         // Active offset based on hover or animation
-        final activeOffset = _isHovering || _resetController.isAnimating 
-            ? _tiltOffset 
+        final activeOffset = _isHovering || _resetController.isAnimating
+            ? _tiltOffset
             : Offset.zero;
-            
+
         // X tilt is controlled by Y offset
         final double rotateX = -activeOffset.dy * widget.maxTiltAngle;
         // Y tilt is controlled by X offset
@@ -121,8 +120,8 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
           onExit: (_) => _onPointerExit(),
           child: GestureDetector(
             onPanUpdate: (details) => _onPointerMove(
-              PointerHoverEvent(position: details.globalPosition, localPosition: details.localPosition), 
-              Size(width, widget.height)
+              PointerHoverEvent(position: details.localPosition),
+              Size(width, widget.height),
             ),
             onPanEnd: (_) => _onPointerExit(),
             child: TweenAnimationBuilder<Matrix4>(
@@ -143,8 +142,11 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
                           color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 15,
                           spreadRadius: -2,
-                          offset: Offset(-activeOffset.dx * 15, -activeOffset.dy * 15 + 10),
-                        )
+                          offset: Offset(
+                            -activeOffset.dx * 15,
+                            -activeOffset.dy * 15 + 10,
+                          ),
+                        ),
                       ],
                     ),
                     child: ClipRRect(
@@ -160,7 +162,7 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
                               fit: BoxFit.cover,
                             ),
                           ),
-                          
+
                           // Optional Caption overlay
                           if (widget.caption != null)
                             Positioned(
@@ -181,14 +183,16 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
                                 ),
                                 child: Text(
                                   widget.caption!,
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: widget.captionColor ?? Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        color:
+                                            widget.captionColor ?? Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
                               ),
                             ),
-                            
+
                           // Lighting / Glare effect overlay
                           if (_isHovering || _resetController.isAnimating)
                             Positioned.fill(
@@ -196,7 +200,8 @@ class _SbTiltImageState extends State<SbTiltImage> with SingleTickerProviderStat
                                 decoration: BoxDecoration(
                                   gradient: RadialGradient(
                                     center: FractionalOffset(
-                                      (activeOffset.dx + 1) / 2, // Map -1..1 to 0..1
+                                      (activeOffset.dx + 1) /
+                                          2, // Map -1..1 to 0..1
                                       (activeOffset.dy + 1) / 2,
                                     ),
                                     radius: 1.2,

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../design/tokens.dart';
@@ -9,7 +10,7 @@ class SbTiltCard extends StatefulWidget {
   final double borderRadius;
   final double maxTiltAngle; // Maximum tilt angle in radians (e.g., 0.15)
   final Color shadowColor;
-  
+
   const SbTiltCard({
     super.key,
     required this.child,
@@ -24,7 +25,8 @@ class SbTiltCard extends StatefulWidget {
   State<SbTiltCard> createState() => _SbTiltCardState();
 }
 
-class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateMixin {
+class _SbTiltCardState extends State<SbTiltCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Offset _tiltOffset = Offset.zero;
   bool _isHovered = false;
@@ -40,7 +42,9 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
       if (!_isHovered) {
         // Linearly interpolate back to 0,0 when not hovered
         setState(() {
-          _tiltOffset = Offset.lerp(_tiltOffset, Offset.zero, _controller.value) ?? Offset.zero;
+          _tiltOffset =
+              Offset.lerp(_tiltOffset, Offset.zero, _controller.value) ??
+              Offset.zero;
         });
       }
     });
@@ -54,7 +58,7 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
 
   void _onHover(PointerEvent event) {
     if (!mounted) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final localPosition = renderBox.globalToLocal(event.position);
@@ -84,13 +88,6 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    // Determine current tilt values based on state
-    final double tiltX = _tiltOffset.dx * widget.maxTiltAngle;
-    final double tiltY = -_tiltOffset.dy * widget.maxTiltAngle; // Invert Y for natural feel
-
-    // Calculate light reflection based on tilt
-    final double lightIntensity = ((_tiltOffset.dx + _tiltOffset.dy) / 2 + 1) / 2; // 0.0 to 1.0
-
     return MouseRegion(
       onEnter: _onEnter,
       onHover: _onHover,
@@ -102,7 +99,7 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
           _onHover(PointerHoverEvent(position: details.globalPosition));
         },
         onPanUpdate: (details) {
-           _onHover(PointerHoverEvent(position: details.globalPosition));
+          _onHover(PointerHoverEvent(position: details.globalPosition));
         },
         onPanEnd: (_) => _onExit(const PointerExitEvent()),
         onPanCancel: () => _onExit(const PointerExitEvent()),
@@ -112,11 +109,11 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
           duration: const Duration(milliseconds: 100),
           curve: Curves.easeOut,
           builder: (context, smoothedOffset, child) {
-            
             final double sTiltX = smoothedOffset.dx * widget.maxTiltAngle;
             final double sTiltY = -smoothedOffset.dy * widget.maxTiltAngle;
-            final double sLight = ((smoothedOffset.dx + smoothedOffset.dy) / 2 + 1) / 2;
-            
+            final double sLight =
+                ((smoothedOffset.dx + smoothedOffset.dy) / 2 + 1) / 2;
+
             final matrix = Matrix4.identity()
               ..setEntry(3, 2, 0.001) // perspective
               ..rotateX(sTiltY)
@@ -134,7 +131,10 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
                     // Dynamic shadow that shifts opposite to the tilt direction
                     BoxShadow(
                       color: widget.shadowColor.withValues(alpha: 0.3),
-                      offset: Offset(-smoothedOffset.dx * 20, -smoothedOffset.dy * 20 + 20),
+                      offset: Offset(
+                        -smoothedOffset.dx * 20,
+                        -smoothedOffset.dy * 20 + 20,
+                      ),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -147,7 +147,7 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
                     children: [
                       // The main content
                       widget.child,
-                      
+
                       // 3D Lighting glare effect
                       Positioned.fill(
                         child: IgnorePointer(
@@ -163,7 +163,10 @@ class _SbTiltCardState extends State<SbTiltCard> with SingleTickerProviderStateM
                                 ],
                                 stops: const [0.0, 0.5, 1.0],
                                 // Shift the gradient based on tilt to simulate moving light
-                                transform: GradientRotation(math.pi / 4 + (smoothedOffset.dx * math.pi / 4)),
+                                transform: GradientRotation(
+                                  math.pi / 4 +
+                                      (smoothedOffset.dx * math.pi / 4),
+                                ),
                               ),
                             ),
                           ),

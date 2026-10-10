@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class SbCursorMagnet extends StatefulWidget {
@@ -18,7 +19,8 @@ class SbCursorMagnet extends StatefulWidget {
   State<SbCursorMagnet> createState() => _SbCursorMagnetState();
 }
 
-class _SbCursorMagnetState extends State<SbCursorMagnet> with SingleTickerProviderStateMixin {
+class _SbCursorMagnetState extends State<SbCursorMagnet>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Offset _magneticOffset = Offset.zero;
   bool _isHovering = false;
@@ -35,7 +37,9 @@ class _SbCursorMagnetState extends State<SbCursorMagnet> with SingleTickerProvid
     _controller.addListener(() {
       if (!_isHovering) {
         setState(() {
-          _magneticOffset = Offset.lerp(_magneticOffset, Offset.zero, _controller.value) ?? Offset.zero;
+          _magneticOffset =
+              Offset.lerp(_magneticOffset, Offset.zero, _controller.value) ??
+              Offset.zero;
         });
       }
     });
@@ -49,18 +53,18 @@ class _SbCursorMagnetState extends State<SbCursorMagnet> with SingleTickerProvid
 
   void _onHover(PointerEvent event) {
     if (!mounted) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final localPosition = renderBox.globalToLocal(event.position);
-    
+
     // Calculate center of the widget
     final Offset center = Offset(size.width / 2, size.height / 2);
-    
+
     // Calculate distance from center to cursor
     final double dx = localPosition.dx - center.dx;
     final double dy = localPosition.dy - center.dy;
-    
+
     // Calculate percentage based on detection radius
     double percentX = (dx / widget.detectionRadius).clamp(-1.0, 1.0);
     double percentY = (dy / widget.detectionRadius).clamp(-1.0, 1.0);
@@ -102,10 +106,7 @@ class _SbCursorMagnetState extends State<SbCursorMagnet> with SingleTickerProvid
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic,
           builder: (context, smoothedOffset, child) {
-            return Transform.translate(
-              offset: smoothedOffset,
-              child: child,
-            );
+            return Transform.translate(offset: smoothedOffset, child: child);
           },
           child: widget.child,
         ),
