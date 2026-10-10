@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/category_provider.dart';
 import '../../../core/design/tokens.dart';
-import '../../../core/components/sb_loading.dart';
-import '../../../core/components/sb_empty_state.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../core/theme/app_colors.dart';
 
 class CategoryScreenshotsScreen extends ConsumerWidget {
@@ -14,7 +15,9 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final screenshotsAsync = ref.watch(screenshotsByCategoryProvider(categoryName));
+    final screenshotsAsync = ref.watch(
+      screenshotsByCategoryProvider(categoryName),
+    );
     final catColor = _categoryColor(categoryName);
 
     return Scaffold(
@@ -35,11 +38,20 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
         ),
       ),
       body: screenshotsAsync.when(
-        loading: () => const SbLoading(),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        loading: () => LoadingWidget(
+          message: 'Loading $categoryName screenshots...',
+          icon: Icons.photo_library_rounded,
+        ),
+        error: (error, _) => AppErrorWidget(
+          title: 'Could not load screenshots',
+          message: error.toString(),
+          icon: Icons.photo_library_outlined,
+          onRetry: () =>
+              ref.invalidate(screenshotsByCategoryProvider(categoryName)),
+        ),
         data: (screenshots) {
           if (screenshots.isEmpty) {
-            return SbEmptyState(
+            return EmptyStateWidget(
               icon: Icons.photo_library_outlined,
               title: 'No $categoryName Screenshots',
               subtitle: 'Screenshots in this category will appear here',
@@ -67,8 +79,10 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
                     child: Image.file(
                       File(screenshot.filePath),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      errorBuilder: (_, _, _) => Container(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         child: const Icon(Icons.broken_image_rounded, size: 24),
                       ),
                     ),
@@ -84,17 +98,28 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
 
   Color _categoryColor(String category) {
     switch (category) {
-      case 'Payments': return AppColors.categoryPayments;
-      case 'UPI Receipts': return AppColors.categoryUpi;
-      case 'Shopping': return AppColors.categoryShopping;
-      case 'Travel Tickets': return AppColors.categoryTravel;
-      case 'Bills': return AppColors.categoryBills;
-      case 'Documents': return AppColors.categoryDocuments;
-      case 'OTP Screenshots': return AppColors.categoryOtp;
-      case 'Addresses': return AppColors.categoryAddress;
-      case 'Notes': return AppColors.categoryNotes;
-      case 'Social Media': return AppColors.categorySocial;
-      default: return AppColors.categoryOther;
+      case 'Payments':
+        return AppColors.categoryPayments;
+      case 'UPI Receipts':
+        return AppColors.categoryUpi;
+      case 'Shopping':
+        return AppColors.categoryShopping;
+      case 'Travel Tickets':
+        return AppColors.categoryTravel;
+      case 'Bills':
+        return AppColors.categoryBills;
+      case 'Documents':
+        return AppColors.categoryDocuments;
+      case 'OTP Screenshots':
+        return AppColors.categoryOtp;
+      case 'Addresses':
+        return AppColors.categoryAddress;
+      case 'Notes':
+        return AppColors.categoryNotes;
+      case 'Social Media':
+        return AppColors.categorySocial;
+      default:
+        return AppColors.categoryOther;
     }
   }
 }

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/category_provider.dart';
 import '../../../core/design/tokens.dart';
-import '../../../core/components/sb_loading.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../core/components/sb_card.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -27,43 +29,52 @@ class CategoriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final countsAsync = ref.watch(categoryCountsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Categories')),
       body: countsAsync.when(
-        loading: () => const SbLoading(),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
-              const SizedBox(height: SBSpacing.lg),
-              Text('Error: $error', style: theme.textTheme.bodyLarge),
-            ],
-          ),
+        loading: () => const LoadingWidget(
+          message: 'Loading categories...',
+          icon: Icons.category_rounded,
         ),
-        data: (counts) => GridView.builder(
-          padding: const EdgeInsets.all(SBSpacing.lg),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: SBSpacing.md,
-            mainAxisSpacing: SBSpacing.md,
-            childAspectRatio: 1.3,
-          ),
-          itemCount: _categories.length,
-          itemBuilder: (context, index) {
-            final (name, icon, color) = _categories[index];
-            final count = counts[name] ?? 0;
-            return _CategoryCard(
-              name: name,
-              icon: icon,
-              color: color,
-              count: count,
+        error: (error, _) => AppErrorWidget(
+          title: 'Could not load categories',
+          message: error.toString(),
+          icon: Icons.category_outlined,
+          onRetry: () => ref.invalidate(categoryCountsProvider),
+        ),
+        data: (counts) {
+          final totalScreenshots = counts.values.fold(0, (a, b) => a + b);
+          if (totalScreenshots == 0) {
+            return const EmptyStateWidget(
+              icon: Icons.folder_open_rounded,
+              title: 'No categorized screenshots yet',
+              subtitle:
+                  'Scan your screenshots and they will be grouped here automatically',
             );
-          },
-        ),
+          }
+          return GridView.builder(
+            padding: const EdgeInsets.all(SBSpacing.lg),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: SBSpacing.md,
+              mainAxisSpacing: SBSpacing.md,
+              childAspectRatio: 1.3,
+            ),
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final (name, icon, color) = _categories[index];
+              final count = counts[name] ?? 0;
+              return _CategoryCard(
+                name: name,
+                icon: icon,
+                color: color,
+                count: count,
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -108,7 +119,9 @@ class _CategoryCard extends StatelessWidget {
               const SizedBox(height: SBSpacing.xxs),
               Text(
                 '$count screenshot${count == 1 ? '' : 's'}',
-                style: theme.textTheme.bodySmall?.copyWith(color: context.sb.textSecondary),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.sb.textSecondary,
+                ),
               ),
             ],
           ),

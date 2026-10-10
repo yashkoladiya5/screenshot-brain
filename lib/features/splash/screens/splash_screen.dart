@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../services/permission_service.dart';
@@ -11,10 +12,14 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  static const _splashDelay = Duration(seconds: 2);
+
   late AnimationController _animController;
   late Animation<double> _fadeIn;
   late Animation<double> _scale;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -23,25 +28,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _fadeIn = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
-    _scale = Tween<double>(begin: 0.85, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
+    _fadeIn = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _scale = Tween<double>(
+      begin: 0.85,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
-    _navigate();
+    // Cancelable timer instead of Future.delayed: disposed with the widget so
+    // no pending Timer outlives the screen (or a widget test that tears it
+    // down before the delay elapses).
+    _navigationTimer = Timer(_splashDelay, _navigate);
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
+    _navigationTimer = null;
     _animController.dispose();
     super.dispose();
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
     final hasPermission = await PermissionService.hasGalleryPermission();
     if (!mounted) return;
     if (hasPermission) {
@@ -68,7 +78,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(SBRadius.xxl),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                      width: 1,
+                    ),
                   ),
                   child: const Icon(
                     Icons.auto_awesome_rounded,
