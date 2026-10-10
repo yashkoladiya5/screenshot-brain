@@ -10,9 +10,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/components/sb_card.dart';
 import '../../../core/components/sb_stat_card.dart';
 import '../../../core/components/sb_section_header.dart';
-import '../../../core/components/sb_loading.dart';
-import '../../../core/components/sb_empty_state.dart';
-import '../../../core/components/sb_error_state.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 
 class HomeDashboardScreen extends ConsumerWidget {
   const HomeDashboardScreen({super.key});
@@ -24,14 +24,20 @@ class HomeDashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       body: statsAsync.when(
-        loading: () => const SbLoading(message: 'Loading your dashboard...'),
-        error: (error, _) => SbErrorState(
+        loading: () => const LoadingWidget(
+          message: 'Loading your dashboard...',
+          icon: Icons.dashboard_rounded,
+        ),
+        error: (error, _) => AppErrorWidget(
+          title: 'Could not load dashboard',
           message: error.toString(),
           onRetry: () => ref.invalidate(homeStatsProvider),
         ),
         data: (stats) {
           if (stats.screenshotCount == 0 && !isScanning) {
-            return _EmptyHome(scan: () => ref.read(scanScreenshotsProvider.notifier).scan());
+            return _EmptyHome(
+              scan: () => ref.read(scanScreenshotsProvider.notifier).scan(),
+            );
           }
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(homeStatsProvider),
@@ -42,17 +48,51 @@ class HomeDashboardScreen extends ConsumerWidget {
                 if (isScanning)
                   const SliverToBoxAdapter(child: _ScanningBanner()),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(SBSpacing.lg, SBSpacing.lg, SBSpacing.lg, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: _StatsGrid(stats: stats),
+                  padding: const EdgeInsets.fromLTRB(
+                    SBSpacing.lg,
+                    SBSpacing.lg,
+                    SBSpacing.lg,
+                    0,
                   ),
+                  sliver: SliverToBoxAdapter(child: _StatsGrid(stats: stats)),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(SBSpacing.lg, SBSpacing.xxl, SBSpacing.lg, SBSpacing.md),
-                  sliver: SliverToBoxAdapter(
-                    child: SbSectionHeader(
-                      title: 'Quick Actions',
+                if (stats.expensesByCategory.isNotEmpty) ...[
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      SBSpacing.lg,
+                      SBSpacing.xxl,
+                      SBSpacing.lg,
+                      SBSpacing.md,
                     ),
+                    sliver: SliverToBoxAdapter(
+                      child: SbSectionHeader(
+                        title: 'Top Categories',
+                        actionLabel: 'View All',
+                        onAction: () => context.push('/expenses'),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SBSpacing.lg,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _CategoryBreakdown(
+                        byCategory: stats.expensesByCategory,
+                        total: stats.totalExpenses,
+                      ),
+                    ),
+                  ),
+                ],
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    SBSpacing.lg,
+                    SBSpacing.xxl,
+                    SBSpacing.lg,
+                    SBSpacing.md,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: SbSectionHeader(title: 'Quick Actions'),
                   ),
                 ),
                 SliverPadding(
@@ -60,13 +100,19 @@ class HomeDashboardScreen extends ConsumerWidget {
                   sliver: SliverToBoxAdapter(
                     child: _QuickActions(
                       isScanning: isScanning,
-                      onScan: () => ref.read(scanScreenshotsProvider.notifier).scan(),
+                      onScan: () =>
+                          ref.read(scanScreenshotsProvider.notifier).scan(),
                     ),
                   ),
                 ),
                 if (stats.recentExpenses.isNotEmpty) ...[
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(SBSpacing.lg, SBSpacing.xxl, SBSpacing.lg, SBSpacing.md),
+                    padding: const EdgeInsets.fromLTRB(
+                      SBSpacing.lg,
+                      SBSpacing.xxl,
+                      SBSpacing.lg,
+                      SBSpacing.md,
+                    ),
                     sliver: SliverToBoxAdapter(
                       child: SbSectionHeader(
                         title: 'Recent Expenses',
@@ -76,13 +122,19 @@ class HomeDashboardScreen extends ConsumerWidget {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SBSpacing.lg,
+                    ),
                     sliver: SliverToBoxAdapter(
-                      child: _RecentExpensesList(expenses: stats.recentExpenses),
+                      child: _RecentExpensesList(
+                        expenses: stats.recentExpenses,
+                      ),
                     ),
                   ),
                 ],
-                const SliverToBoxAdapter(child: SizedBox(height: SBSpacing.xxxl)),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: SBSpacing.xxxl),
+                ),
               ],
             ),
           );
@@ -107,7 +159,10 @@ class _SliverAppBar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Screenshot Brain', style: theme.textTheme.headlineSmall),
-          Text('Your intelligent screenshot assistant', style: theme.textTheme.bodySmall),
+          Text(
+            'Your intelligent screenshot assistant',
+            style: theme.textTheme.bodySmall,
+          ),
         ],
       ),
       actions: [
@@ -153,37 +208,103 @@ class _StatsGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: SbStatCard(
-              icon: Icons.photo_library_rounded,
-              label: 'Screenshots',
-              value: '${stats.screenshotCount}',
-            )),
+            Expanded(
+              child: SbStatCard(
+                icon: Icons.photo_library_rounded,
+                label: 'Screenshots',
+                value: '${stats.screenshotCount}',
+              ),
+            ),
             const SizedBox(width: SBSpacing.md),
-            Expanded(child: SbStatCard(
-              icon: Icons.receipt_long_rounded,
-              label: 'Expenses',
-              value: '${stats.expenseCount}',
-            )),
+            Expanded(
+              child: SbStatCard(
+                icon: Icons.receipt_long_rounded,
+                label: 'Expenses',
+                value: '${stats.expenseCount}',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: SBSpacing.md),
         Row(
           children: [
-            Expanded(child: SbStatCard(
-              icon: Icons.hourglass_empty_rounded,
-              label: 'Unprocessed',
-              value: '${stats.unprocessedCount}',
-            )),
+            Expanded(
+              child: SbStatCard(
+                icon: Icons.hourglass_empty_rounded,
+                label: 'Unprocessed',
+                value: '${stats.unprocessedCount}',
+              ),
+            ),
             const SizedBox(width: SBSpacing.md),
-            Expanded(child: SbStatCard(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Total Spent',
-              value: '\u20b9${NumberFormat('#,##0').format(stats.totalExpenses)}',
-              color: AppColors.success,
-            )),
+            Expanded(
+              child: SbStatCard(
+                icon: Icons.calendar_month_rounded,
+                label: 'This Month',
+                value:
+                    '\u20b9${NumberFormat('#,##0').format(stats.monthlyExpenses)}',
+                color: AppColors.primary,
+              ),
+            ),
           ],
         ),
+        const SizedBox(height: SBSpacing.md),
+        SbStatCard(
+          icon: Icons.account_balance_wallet_rounded,
+          label: 'Total Spent',
+          value: '\u20b9${NumberFormat('#,##0').format(stats.totalExpenses)}',
+          color: AppColors.success,
+        ),
       ],
+    );
+  }
+}
+
+/// Spend per category straight from the shared expense snapshot — no
+/// ad-hoc recomputation or extra database scans on the screen side.
+class _CategoryBreakdown extends StatelessWidget {
+  final Map<String, double> byCategory;
+  final double total;
+
+  const _CategoryBreakdown({required this.byCategory, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sorted = byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = sorted.take(3).toList();
+
+    return SbCard(
+      child: Column(
+        children: top.map((entry) {
+          final percentage = total > 0 ? (entry.value / total) * 100 : 0.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: SBSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(entry.key, style: theme.textTheme.bodyMedium),
+                ),
+                Text(
+                  '\u20b9${NumberFormat('#,##0').format(entry.value)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: SBSpacing.sm),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    '${percentage.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -261,10 +382,19 @@ class _ActionButton extends StatelessWidget {
                     color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(SBRadius.sm),
                   ),
-                  child: Icon(icon, color: theme.colorScheme.primary, size: SBSizes.iconXl),
+                  child: Icon(
+                    icon,
+                    color: theme.colorScheme.primary,
+                    size: SBSizes.iconXl,
+                  ),
                 ),
               const SizedBox(height: SBSpacing.sm),
-              Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface)),
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
             ],
           ),
         ),
@@ -285,13 +415,18 @@ class _RecentExpensesList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: SBSpacing.sm),
           child: SbCard(
-            padding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg, vertical: SBSpacing.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: SBSpacing.lg,
+              vertical: SBSpacing.md,
+            ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(SBSpacing.sm),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(SBRadius.sm),
                   ),
                   child: Icon(
@@ -305,13 +440,26 @@ class _RecentExpensesList extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(expense.merchant ?? 'Unknown', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                      Text(
+                        expense.merchant ?? 'Unknown',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       const SizedBox(height: SBSpacing.xxs),
-                      Text('${expense.category ?? "Other"} \u2022 ${expense.dateDisplay}', style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        '${expense.category ?? "Other"} \u2022 ${expense.dateDisplay}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
-                Text(expense.amountDisplay, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success)),
+                Text(
+                  expense.amountDisplay,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: AppColors.success),
+                ),
               ],
             ),
           ),
@@ -328,21 +476,24 @@ class _EmptyHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SbEmptyState(
-          icon: Icons.photo_library_outlined,
-          title: 'No screenshots yet',
-          subtitle: 'Scan your device to automatically organize screenshots, detect expenses, and find important documents.',
-          action: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: scan,
-              icon: const Icon(Icons.document_scanner_rounded, size: SBSizes.iconMd),
-              label: const Text('Scan Screenshots'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: SBSpacing.lg),
-              ),
+    return SafeArea(
+      child: EmptyStateWidget(
+        icon: Icons.photo_library_outlined,
+        title: 'No screenshots yet',
+        subtitle:
+            'Scan your device to automatically organize screenshots, detect expenses, and find important documents.',
+        action: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: const Key('homeScanAction'),
+            onPressed: scan,
+            icon: const Icon(
+              Icons.document_scanner_rounded,
+              size: SBSizes.iconMd,
+            ),
+            label: const Text('Scan Screenshots'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: SBSpacing.lg),
             ),
           ),
         ),
@@ -358,7 +509,12 @@ class _ScanningBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(SBSpacing.lg, SBSpacing.sm, SBSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+        SBSpacing.lg,
+        SBSpacing.sm,
+        SBSpacing.lg,
+        0,
+      ),
       child: SbCard(
         padding: const EdgeInsets.all(SBSpacing.lg),
         child: Row(
@@ -366,18 +522,16 @@ class _ScanningBanner extends StatelessWidget {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: primary,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: primary),
             ),
             const SizedBox(width: SBSpacing.md),
-            Text('Scanning for screenshots...', style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Scanning for screenshots...',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
       ),
     );
   }
 }
-
-

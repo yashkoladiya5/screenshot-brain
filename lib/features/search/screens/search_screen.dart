@@ -6,9 +6,10 @@ import 'package:intl/intl.dart';
 import '../providers/search_provider.dart';
 import '../../../shared/models/screenshot_model.dart';
 import '../../../core/design/tokens.dart';
-import '../../../core/components/sb_loading.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../core/components/sb_card.dart';
-import '../../../core/components/sb_empty_state.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -49,7 +50,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(SBSpacing.lg, SBSpacing.lg, SBSpacing.lg, SBSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                SBSpacing.lg,
+                SBSpacing.lg,
+                SBSpacing.lg,
+                SBSpacing.md,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -67,20 +73,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           hintText: 'Search screenshots...',
                           border: InputBorder.none,
                           filled: false,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg, vertical: SBSpacing.md),
-                          prefixIcon: Icon(Icons.search_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: SBSpacing.lg,
+                            vertical: SBSpacing.md,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: sb.textTertiary,
+                            size: SBSizes.iconMd,
+                          ),
                           suffixIcon: query.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.close_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: sb.textTertiary,
+                                    size: SBSizes.iconMd,
+                                  ),
                                   onPressed: () {
                                     _searchController.clear();
-                                    ref.read(searchQueryProvider.notifier).state = '';
+                                    ref
+                                            .read(searchQueryProvider.notifier)
+                                            .state =
+                                        '';
                                   },
                                 )
                               : null,
                         ),
                         style: theme.textTheme.bodyLarge,
-                        onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
+                        onChanged: (value) =>
+                            ref.read(searchQueryProvider.notifier).state =
+                                value,
                       ),
                     ),
                   ),
@@ -94,7 +116,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
 
             Expanded(
-              child: query.isEmpty ? _buildSuggestions(theme, sb, suggestions) : _buildResults(theme, sb, resultsAsync, query),
+              child: query.isEmpty
+                  ? _buildSuggestions(theme, sb, suggestions)
+                  : _buildResults(theme, sb, resultsAsync, query),
             ),
           ],
         ),
@@ -102,13 +126,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildSuggestions(ThemeData theme, ScreenshotBrainThemeExtension sb, List<String> suggestions) {
+  Widget _buildSuggestions(
+    ThemeData theme,
+    ScreenshotBrainThemeExtension sb,
+    List<String> suggestions,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Suggestions', style: theme.textTheme.titleMedium?.copyWith(color: sb.textSecondary)),
+          Text(
+            'Suggestions',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: sb.textSecondary,
+            ),
+          ),
           const SizedBox(height: SBSpacing.md),
           Wrap(
             spacing: SBSpacing.sm,
@@ -128,15 +161,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildResults(ThemeData theme, ScreenshotBrainThemeExtension sb, AsyncValue<List<ScreenshotModel>> resultsAsync, String query) {
+  Widget _buildResults(
+    ThemeData theme,
+    ScreenshotBrainThemeExtension sb,
+    AsyncValue<List<ScreenshotModel>> resultsAsync,
+    String query,
+  ) {
     return resultsAsync.when(
-      loading: () => const SbLoading(message: 'Searching...'),
-      error: (error, _) => Center(
-        child: Text('Error: $error', style: theme.textTheme.bodyLarge),
+      loading: () => const LoadingWidget(
+        message: 'Searching...',
+        icon: Icons.search_rounded,
+      ),
+      error: (error, _) => AppErrorWidget(
+        title: 'Search failed',
+        message: 'We could not search your screenshots. $error',
+        icon: Icons.search_off_rounded,
+        onRetry: () => ref.invalidate(searchResultsProvider),
       ),
       data: (results) {
         if (results.isEmpty) {
-          return SbEmptyState(
+          return const EmptyStateWidget(
             icon: Icons.search_off_rounded,
             title: 'No Results Found',
             subtitle: 'Try a different search term or browse categories',
@@ -148,7 +192,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           itemBuilder: (context, index) {
             final screenshot = results[index];
             final textPreview = screenshot.extractedText ?? 'No text extracted';
-            final dateStr = DateFormat('dd MMM yyyy').format(screenshot.createdAt);
+            final dateStr = DateFormat(
+              'dd MMM yyyy',
+            ).format(screenshot.createdAt);
             final catColor = _categoryColor(screenshot.category);
 
             return Padding(
@@ -169,7 +215,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           child: Image.file(
                             File(screenshot.filePath),
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               color: theme.colorScheme.surfaceContainerHighest,
                               child: const Icon(Icons.broken_image_rounded),
                             ),
@@ -179,7 +225,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       const SizedBox(width: SBSpacing.md),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: SBSpacing.md),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: SBSpacing.md,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -191,13 +239,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     height: 6,
                                     decoration: BoxDecoration(
                                       color: catColor,
-                                      borderRadius: BorderRadius.circular(SBRadius.full),
+                                      borderRadius: BorderRadius.circular(
+                                        SBRadius.full,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: SBSpacing.xs),
                                   Text(
                                     screenshot.category ?? 'Uncategorized',
-                                    style: theme.textTheme.labelSmall?.copyWith(color: catColor),
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: catColor,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -205,17 +257,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               _HighlightedText(
                                 text: textPreview,
                                 query: query,
-                                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  height: 1.4,
+                                ),
                               ),
                               const SizedBox(height: SBSpacing.xs),
-                              Text(dateStr, style: theme.textTheme.bodySmall?.copyWith(color: sb.textTertiary)),
+                              Text(
+                                dateStr,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: sb.textTertiary,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(right: SBSpacing.sm),
-                        child: Icon(Icons.chevron_right_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          color: sb.textTertiary,
+                          size: SBSizes.iconMd,
+                        ),
                       ),
                     ],
                   ),
@@ -230,17 +293,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Color _categoryColor(String? category) {
     switch (category) {
-      case 'Payments': return AppColors.categoryPayments;
-      case 'UPI Receipts': return AppColors.categoryUpi;
-      case 'Shopping': return AppColors.categoryShopping;
-      case 'Travel Tickets': return AppColors.categoryTravel;
-      case 'Bills': return AppColors.categoryBills;
-      case 'Documents': return AppColors.categoryDocuments;
-      case 'OTP Screenshots': return AppColors.categoryOtp;
-      case 'Addresses': return AppColors.categoryAddress;
-      case 'Notes': return AppColors.categoryNotes;
-      case 'Social Media': return AppColors.categorySocial;
-      default: return AppColors.categoryOther;
+      case 'Payments':
+        return AppColors.categoryPayments;
+      case 'UPI Receipts':
+        return AppColors.categoryUpi;
+      case 'Shopping':
+        return AppColors.categoryShopping;
+      case 'Travel Tickets':
+        return AppColors.categoryTravel;
+      case 'Bills':
+        return AppColors.categoryBills;
+      case 'Documents':
+        return AppColors.categoryDocuments;
+      case 'OTP Screenshots':
+        return AppColors.categoryOtp;
+      case 'Addresses':
+        return AppColors.categoryAddress;
+      case 'Notes':
+        return AppColors.categoryNotes;
+      case 'Social Media':
+        return AppColors.categorySocial;
+      default:
+        return AppColors.categoryOther;
     }
   }
 }
@@ -256,7 +330,12 @@ class _HighlightedText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (query.isEmpty) {
-      return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: style);
+      return Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
     }
 
     final lowerText = text.toLowerCase();
@@ -264,7 +343,12 @@ class _HighlightedText extends StatelessWidget {
     final index = lowerText.indexOf(lowerQuery);
 
     if (index == -1) {
-      return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: style);
+      return Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
     }
 
     return RichText(

@@ -4,9 +4,10 @@ import 'package:intl/intl.dart';
 import '../models/expense_item.dart';
 import '../providers/expense_provider.dart';
 import '../../../core/design/tokens.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../core/components/sb_card.dart';
-import '../../../core/components/sb_loading.dart';
-import '../../../core/components/sb_empty_state.dart';
 import '../../../core/components/sb_section_header.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,10 +16,12 @@ class ExpenseDashboardScreen extends ConsumerStatefulWidget {
   const ExpenseDashboardScreen({super.key});
 
   @override
-  ConsumerState<ExpenseDashboardScreen> createState() => _ExpenseDashboardScreenState();
+  ConsumerState<ExpenseDashboardScreen> createState() =>
+      _ExpenseDashboardScreenState();
 }
 
-class _ExpenseDashboardScreenState extends ConsumerState<ExpenseDashboardScreen> {
+class _ExpenseDashboardScreenState
+    extends ConsumerState<ExpenseDashboardScreen> {
   final _searchController = TextEditingController();
 
   @override
@@ -31,168 +34,54 @@ class _ExpenseDashboardScreenState extends ConsumerState<ExpenseDashboardScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sb = context.sb;
-    final totalAsync = ref.watch(expenseTotalProvider);
-    final categoryAsync = ref.watch(expenseByCategoryProvider);
-    final recentAsync = ref.watch(recentExpensesProvider);
+
+    // One watcher on the single-scan snapshot: total, monthly total, the
+    // category breakdown, recent expenses and in-memory search all derive
+    // from it — no per-section provider fan-out or extra table scans.
+    final snapshotAsync = ref.watch(expenseSnapshotProvider);
     final searchQuery = ref.watch(expenseSearchQueryProvider);
-    final searchResultsAsync = ref.watch(expenseSearchResultsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Expenses')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(SBSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            totalAsync.when(
-              loading: () => _summarySkeleton(theme: theme),
-              error: (e, _) => _summarySkeleton(theme: theme),
-              data: (total) => SbCard(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(SBSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(SBRadius.md),
-                      ),
-                      child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.success, size: 28),
-                    ),
-                    const SizedBox(width: SBSpacing.lg),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '\u20b9${NumberFormat('#,##0.00').format(total)}',
-                          style: theme.textTheme.displaySmall?.copyWith(color: AppColors.success),
-                        ),
-                        const SizedBox(height: SBSpacing.xxs),
-                        Text('Total Expenses', style: theme.textTheme.bodySmall),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+      body: snapshotAsync.when(
+        loading: () => const LoadingWidget(
+          message: 'Loading expenses...',
+          icon: Icons.account_balance_wallet_rounded,
+        ),
+        error: (error, _) => AppErrorWidget(
+          title: 'Could not load expenses',
+          message: error.toString(),
+          onRetry: () => ref.invalidate(expenseListProvider),
+        ),
+        data: (snapshot) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(expenseListProvider),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(SBSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSummary(theme, snapshot),
+                const SizedBox(height: SBSpacing.xxl),
+                const SbSectionHeader(title: 'Categories'),
+                const SizedBox(height: SBSpacing.md),
+                _buildCategoryBreakdown(theme, sb, snapshot),
+                const SizedBox(height: SBSpacing.xxl),
+                _buildSearchField(sb),
+                const SizedBox(height: SBSpacing.lg),
+                if (searchQuery.isNotEmpty)
+                  _buildSearchResults(snapshot)
+                else
+                  _buildRecentExpenses(snapshot),
+              ],
             ),
-            const SizedBox(height: SBSpacing.xxl),
-
-            SbSectionHeader(title: 'Categories'),
-            const SizedBox(height: SBSpacing.md),
-            categoryAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(SBSpacing.xxl),
-                child: SbLoading(),
-              ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: SBSpacing.xl),
-                child: Text('Error loading categories', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)),
-              ),
-              data: (categories) {
-                if (categories.isEmpty) {
-                  return SbCard(
-                    child: Center(
-                      child: Text('No expenses recorded yet', style: theme.textTheme.bodyMedium?.copyWith(color: sb.textSecondary)),
-                    ),
-                  );
-                }
-                final total = categories.values.fold(0.0, (a, b) => a + b);
-                return SbCard(
-                  child: Column(
-                    children: categories.entries.map((entry) {
-                      final percentage = total > 0 ? (entry.value / total) * 100 : 0.0;
-                      final catColor = _categoryColor(entry.key);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: SBSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: catColor,
-                                        borderRadius: BorderRadius.circular(SBRadius.full),
-                                      ),
-                                    ),
-                                    const SizedBox(width: SBSpacing.sm),
-                                    Text(entry.key, style: theme.textTheme.bodyMedium),
-                                  ],
-                                ),
-                                Text(
-                                  '\u20b9${NumberFormat('#,##0.00').format(entry.value)}',
-                                  style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: SBSpacing.sm),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(SBRadius.xs),
-                              child: LinearProgressIndicator(
-                                value: percentage / 100,
-                                minHeight: 6,
-                                backgroundColor: sb.borderLight,
-                                color: catColor,
-                              ),
-                            ),
-                            const SizedBox(height: SBSpacing.xxs),
-                            Text(
-                              '${percentage.toStringAsFixed(1)}%',
-                              style: theme.textTheme.labelSmall?.copyWith(color: sb.textTertiary),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: SBSpacing.xxl),
-
-            Container(
-              decoration: BoxDecoration(
-                color: sb.elevated,
-                borderRadius: BorderRadius.circular(SBRadius.lg),
-                border: Border.all(color: sb.borderLight),
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search expenses...',
-                  border: InputBorder.none,
-                  filled: false,
-                  prefixIcon: Icon(Icons.search_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
-                  suffixIcon: searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.close_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
-                          onPressed: () {
-                            _searchController.clear();
-                            ref.read(expenseSearchQueryProvider.notifier).state = '';
-                          },
-                        )
-                      : null,
-                ),
-                onChanged: (value) => ref.read(expenseSearchQueryProvider.notifier).state = value,
-              ),
-            ),
-            const SizedBox(height: SBSpacing.lg),
-
-            if (searchQuery.isNotEmpty)
-              _buildExpenseList(context, searchResultsAsync)
-            else
-              _buildRecentExpenses(context, recentAsync),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _summarySkeleton({required ThemeData theme}) {
+  Widget _buildSummary(ThemeData theme, ExpenseSnapshot snapshot) {
     return SbCard(
       child: Row(
         children: [
@@ -202,15 +91,45 @@ class _ExpenseDashboardScreenState extends ConsumerState<ExpenseDashboardScreen>
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(SBRadius.md),
             ),
-            child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.success, size: 28),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: AppColors.success,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: SBSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '\u20b9${NumberFormat('#,##0.00').format(snapshot.total)}',
+                  style: theme.textTheme.displaySmall?.copyWith(
+                    color: AppColors.success,
+                  ),
+                ),
+                const SizedBox(height: SBSpacing.xxs),
+                Text('Total Expenses', style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 48,
+            color: theme.colorScheme.outlineVariant,
           ),
           const SizedBox(width: SBSpacing.lg),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('\u20b90.00', style: theme.textTheme.displaySmall?.copyWith(color: AppColors.success)),
+              Text(
+                '\u20b9${NumberFormat('#,##0.00').format(snapshot.monthlyTotal)}',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: SBSpacing.xxs),
-              Text('Total Expenses', style: theme.textTheme.bodySmall),
+              Text('This Month', style: theme.textTheme.bodySmall),
             ],
           ),
         ],
@@ -218,65 +137,193 @@ class _ExpenseDashboardScreenState extends ConsumerState<ExpenseDashboardScreen>
     );
   }
 
-  Widget _buildExpenseList(BuildContext context, AsyncValue<List<ExpenseItem>> async) {
-    return async.when(
-      loading: () => const SbLoading(),
-      error: (e, _) => Text('Error: $e'),
-      data: (expenses) {
-        if (expenses.isEmpty) {
-          return const SbEmptyState(icon: Icons.search_off_rounded, title: 'No Expenses Found');
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SbSectionHeader(title: 'Search Results'),
-            const SizedBox(height: SBSpacing.md),
-            ...expenses.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: SBSpacing.sm),
-              child: _ExpenseCard(expense: e),
-            )),
-          ],
-        );
-      },
+  Widget _buildCategoryBreakdown(
+    ThemeData theme,
+    ScreenshotBrainThemeExtension sb,
+    ExpenseSnapshot snapshot,
+  ) {
+    final categories = snapshot.byCategory;
+    if (categories.isEmpty) {
+      return const EmptyStateWidget(
+        icon: Icons.category_outlined,
+        title: 'No expenses recorded yet',
+        subtitle: 'Detected expenses from your screenshots will appear here',
+        iconSize: 32,
+      );
+    }
+    final sorted = categories.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return SbCard(
+      child: Column(
+        children: sorted.map((entry) {
+          // Percentages come from the snapshot's own total — no re-fold.
+          final percentage = snapshot.total > 0
+              ? (entry.value / snapshot.total) * 100
+              : 0.0;
+          final catColor = _categoryColor(entry.key);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: SBSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: catColor,
+                            borderRadius: BorderRadius.circular(SBRadius.full),
+                          ),
+                        ),
+                        const SizedBox(width: SBSpacing.sm),
+                        Text(entry.key, style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                    Text(
+                      '\u20b9${NumberFormat('#,##0.00').format(entry.value)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: SBSpacing.sm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(SBRadius.xs),
+                  child: LinearProgressIndicator(
+                    value: percentage / 100,
+                    minHeight: 6,
+                    backgroundColor: sb.borderLight,
+                    color: catColor,
+                  ),
+                ),
+                const SizedBox(height: SBSpacing.xxs),
+                Text(
+                  '${percentage.toStringAsFixed(1)}%',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: sb.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _buildRecentExpenses(BuildContext context, AsyncValue<List<ExpenseItem>> async) {
-    return async.when(
-      loading: () => const SbLoading(),
-      error: (e, _) => Text('Error: $e'),
-      data: (expenses) {
-        if (expenses.isEmpty) {
-          return const SbEmptyState(
-            icon: Icons.receipt_long_rounded,
-            title: 'No Expenses Yet',
-            subtitle: 'Scan screenshots to detect expenses automatically',
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SbSectionHeader(title: 'Recent Expenses'),
-            const SizedBox(height: SBSpacing.md),
-            ...expenses.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: SBSpacing.sm),
-              child: _ExpenseCard(expense: e),
-            )),
-          ],
-        );
-      },
+  Widget _buildSearchField(ScreenshotBrainThemeExtension sb) {
+    final searchQuery = ref.watch(expenseSearchQueryProvider);
+    return Container(
+      decoration: BoxDecoration(
+        color: sb.elevated,
+        borderRadius: BorderRadius.circular(SBRadius.lg),
+        border: Border.all(color: sb.borderLight),
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search expenses...',
+          border: InputBorder.none,
+          filled: false,
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: sb.textTertiary,
+            size: SBSizes.iconMd,
+          ),
+          suffixIcon: searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: sb.textTertiary,
+                    size: SBSizes.iconMd,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(expenseSearchQueryProvider.notifier).state = '';
+                  },
+                )
+              : null,
+        ),
+        onChanged: (value) =>
+            ref.read(expenseSearchQueryProvider.notifier).state = value,
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(ExpenseSnapshot snapshot) {
+    // Filtering the in-memory snapshot: keystrokes never hit the database.
+    final results = snapshot.search(
+      normalizeExpenseQuery(ref.watch(expenseSearchQueryProvider)),
+    );
+    if (results.isEmpty) {
+      return const EmptyStateWidget(
+        icon: Icons.search_off_rounded,
+        title: 'No Expenses Found',
+        subtitle: 'Try a different merchant, category or description',
+        iconSize: 32,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SbSectionHeader(title: 'Search Results'),
+        const SizedBox(height: SBSpacing.md),
+        ...results.map(
+          (e) => Padding(
+            padding: const EdgeInsets.only(bottom: SBSpacing.sm),
+            child: _ExpenseCard(expense: e),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentExpenses(ExpenseSnapshot snapshot) {
+    final recent = snapshot.recent;
+    if (recent.isEmpty) {
+      return const EmptyStateWidget(
+        icon: Icons.receipt_long_rounded,
+        title: 'No Expenses Yet',
+        subtitle: 'Scan screenshots to detect expenses automatically',
+        iconSize: 32,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SbSectionHeader(title: 'Recent Expenses'),
+        const SizedBox(height: SBSpacing.md),
+        ...recent.map(
+          (e) => Padding(
+            padding: const EdgeInsets.only(bottom: SBSpacing.sm),
+            child: _ExpenseCard(expense: e),
+          ),
+        ),
+      ],
     );
   }
 
   Color _categoryColor(String? category) {
     switch (category) {
-      case 'Food': return AppColors.categoryPayments;
-      case 'Travel': return AppColors.categoryTravel;
-      case 'Shopping': return AppColors.categoryShopping;
-      case 'Bills': return AppColors.categoryBills;
-      case 'Healthcare': return AppColors.categoryAddress;
-      case 'Entertainment': return AppColors.categorySocial;
-      default: return AppColors.categoryOther;
+      case 'Food':
+        return AppColors.categoryPayments;
+      case 'Travel':
+        return AppColors.categoryTravel;
+      case 'Shopping':
+        return AppColors.categoryShopping;
+      case 'Bills':
+        return AppColors.categoryBills;
+      case 'Healthcare':
+        return AppColors.categoryAddress;
+      case 'Entertainment':
+        return AppColors.categorySocial;
+      default:
+        return AppColors.categoryOther;
     }
   }
 }
@@ -290,7 +337,10 @@ class _ExpenseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SbCard(
-      padding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg, vertical: SBSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: SBSpacing.lg,
+        vertical: SBSpacing.md,
+      ),
       child: Row(
         children: [
           Container(
@@ -299,14 +349,23 @@ class _ExpenseCard extends StatelessWidget {
               color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(SBRadius.sm),
             ),
-            child: Icon(Icons.receipt_rounded, color: theme.colorScheme.primary, size: SBSizes.iconMd),
+            child: Icon(
+              Icons.receipt_rounded,
+              color: theme.colorScheme.primary,
+              size: SBSizes.iconMd,
+            ),
           ),
           const SizedBox(width: SBSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(expense.merchant ?? 'Unknown', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                Text(
+                  expense.merchant ?? 'Unknown',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: SBSpacing.xxs),
                 Text(
                   '${expense.category ?? "Other"} \u2022 ${expense.dateDisplay}',
@@ -318,7 +377,9 @@ class _ExpenseCard extends StatelessWidget {
           const SizedBox(width: SBSpacing.md),
           Text(
             expense.amountDisplay,
-            style: theme.textTheme.titleMedium?.copyWith(color: AppColors.success),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: AppColors.success,
+            ),
           ),
         ],
       ),
