@@ -1,42 +1,158 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Immutable application settings.
+///
+/// This is the single source of truth for user preferences. Equality is
+/// value-based so that [StateNotifier] skips redundant notifications when a
+/// mutation produces an identical state.
 class AppSettings {
   final bool autoScanEnabled;
-  final bool darkModeEnabled;
   final bool ocrOnWifiOnly;
   final int scanIntervalHours;
+  final ThemeMode themeMode;
 
   const AppSettings({
     this.autoScanEnabled = true,
-    this.darkModeEnabled = false,
     this.ocrOnWifiOnly = false,
     this.scanIntervalHours = 24,
+    this.themeMode = ThemeMode.system,
   });
 
   AppSettings copyWith({
     bool? autoScanEnabled,
-    bool? darkModeEnabled,
     bool? ocrOnWifiOnly,
     int? scanIntervalHours,
+    ThemeMode? themeMode,
   }) {
     return AppSettings(
       autoScanEnabled: autoScanEnabled ?? this.autoScanEnabled,
-      darkModeEnabled: darkModeEnabled ?? this.darkModeEnabled,
       ocrOnWifiOnly: ocrOnWifiOnly ?? this.ocrOnWifiOnly,
       scanIntervalHours: scanIntervalHours ?? this.scanIntervalHours,
+      themeMode: themeMode ?? this.themeMode,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AppSettings &&
+        other.autoScanEnabled == autoScanEnabled &&
+        other.ocrOnWifiOnly == ocrOnWifiOnly &&
+        other.scanIntervalHours == scanIntervalHours &&
+        other.themeMode == themeMode;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(autoScanEnabled, ocrOnWifiOnly, scanIntervalHours, themeMode);
+
+  @override
+  String toString() =>
+      'AppSettings(autoScan: $autoScanEnabled, wifiOnlyOcr: $ocrOnWifiOnly, '
+      'interval: ${scanIntervalHours}h, theme: ${themeMode.name})';
 }
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
-  return SettingsNotifier();
+/// Persistence hook point for [AppSettings].
+///
+/// The app currently has no on-device settings storage wired up; this seam
+/// keeps the notifier storage-agnostic so any backing store (a file, the
+/// existing Isar database, etc.) can be plugged into [SettingsNotifier] later
+/// without touching the UI layer.
+abstract class SettingsPersistence {
+  const SettingsPersistence();
+
+  /// Returns previously stored settings, or null when nothing is stored yet.
+  Future<AppSettings?> load();
+
+  /// Persists the latest settings. Must never throw to the caller's face;
+  /// failures are logged and ignored by [SettingsNotifier].
+  Future<void> save(AppSettings settings);
+}
+
+/// Process-lifetime in-memory persistence (the default when nothing is
+/// injected). Keeps the last committed snapshot available across notifier
+/// rebuilds within a session.
+class InMemorySettingsPersistence implements SettingsPersistence {
+  AppSettings? _snapshot;
+
+  @override
+  Future<AppSettings?> load() async => _snapshot;
+
+  @override
+  Future<void> save(AppSettings settings) async => _snapshot = settings;
+}
+
+final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((
+  ref,
+) {
+  return SettingsNotifier(persistence: InMemorySettingsPersistence());
+});
+
+/// Derived theme selection, watchable by the app root so a settings change is
+/// applied immediately wherever `MaterialApp.themeMode` is defined.
+final themeModeProvider = Provider<ThemeMode>(
+  (ref) => ref.watch(settingsProvider.select((s) => s.themeMode)),
+);
+
+/// Effective brightness for the current selection given the platform
+/// brightness (useful when [ThemeMode.system] is selected).
+final resolvedBrightnessProvider = Provider<Brightness>((ref) {
+  final mode = ref.watch(themeModeProvider);
+  final platform =
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  switch (mode) {
+    case ThemeMode.light:
+      return Brightness.light;
+    case ThemeMode.dark:
+      return Brightness.dark;
+    case ThemeMode.system:
+      return platform;
+  }
 });
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(const AppSettings());
+  SettingsNotifier({SettingsPersistence? persistence})
+    : _persistence = persistence,
+      super(const AppSettings());
 
-  void toggleAutoScan() => state = state.copyWith(autoScanEnabled: !state.autoScanEnabled);
-  void toggleDarkMode() => state = state.copyWith(darkModeEnabled: !state.darkModeEnabled);
-  void toggleOcrWifiOnly() => state = state.copyWith(ocrOnWifiOnly: !state.ocrOnWifiOnly);
-  void setScanInterval(int hours) => state = state.copyWith(scanIntervalHours: hours);
+  final SettingsPersistence? _persistence;
+
+  /// Restores persisted settings (if any) without notifying when unchanged.
+  Future<void> load() async {
+    final stored = await _persistence?.load();
+    if (stored != null && stored != state) {
+      state = stored;
+    }
+  }
+
+  void toggleAutoScan() =>
+      _commit(state.copyWith(autoScanEnabled: !state.autoScanEnabled));
+
+  void toggleOcrWifiOnly() =>
+      _commit(state.copyWith(ocrOnWifiOnly: !state.ocrOnWifiOnly));
+
+  void setScanInterval(int hours) {
+    final clamped = hours.clamp(1, 24 * 7);
+    _commit(state.copyWith(scanIntervalHours: clamped));
+  }
+
+  void setThemeMode(ThemeMode mode) => _commit(state.copyWith(themeMode: mode));
+
+  /// The only path that mutates [state]: no-op on identical settings, so
+  /// listeners fire only on a real change.
+  void _commit(AppSettings next) {
+    if (next == state) return;
+    state = next;
+    final persistence = _persistence;
+    if (persistence != null) {
+      unawaited(
+        persistence.save(next).catchError((Object _) {
+          // Persistence must never break the UI state update.
+        }),
+      );
+    }
+  }
 }

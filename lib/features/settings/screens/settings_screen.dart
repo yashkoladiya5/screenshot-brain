@@ -27,7 +27,8 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Auto-scan screenshots',
                   subtitle: 'Automatically scan for new screenshots',
                   value: settings.autoScanEnabled,
-                  onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoScan(),
+                  onChanged: (_) =>
+                      ref.read(settingsProvider.notifier).toggleAutoScan(),
                 ),
                 const Divider(height: 1, indent: 52),
                 _SettingSwitch(
@@ -35,14 +36,19 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'OCR on Wi-Fi only',
                   subtitle: 'Process OCR only when connected to Wi-Fi',
                   value: settings.ocrOnWifiOnly,
-                  onChanged: (_) => ref.read(settingsProvider.notifier).toggleOcrWifiOnly(),
+                  onChanged: (_) =>
+                      ref.read(settingsProvider.notifier).toggleOcrWifiOnly(),
                 ),
                 const Divider(height: 1, indent: 52),
                 _SettingTile(
                   icon: Icons.timer_rounded,
                   title: 'Scan Interval',
                   subtitle: 'Every ${settings.scanIntervalHours} hours',
-                  onTap: () => _showIntervalPicker(context, ref, settings.scanIntervalHours),
+                  onTap: () => _showIntervalPicker(
+                    context,
+                    ref,
+                    settings.scanIntervalHours,
+                  ),
                 ),
               ],
             ),
@@ -51,12 +57,37 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: SBSpacing.xxl),
           _Section(title: 'Appearance'),
           SbCard(
-            child: _SettingSwitch(
-              icon: Icons.dark_mode_rounded,
-              title: 'Dark Mode',
-              subtitle: 'Use dark theme',
-              value: settings.darkModeEnabled,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleDarkMode(),
+            child: RadioGroup<ThemeMode>(
+              groupValue: settings.themeMode,
+              onChanged: (mode) {
+                if (mode != null) {
+                  ref.read(settingsProvider.notifier).setThemeMode(mode);
+                }
+              },
+              child: Column(
+                children: [
+                  _ThemeOption(
+                    value: ThemeMode.system,
+                    icon: Icons.brightness_auto_rounded,
+                    title: 'System default',
+                    subtitle: 'Follow the device theme',
+                  ),
+                  const Divider(height: 1, indent: 52),
+                  _ThemeOption(
+                    value: ThemeMode.light,
+                    icon: Icons.light_mode_rounded,
+                    title: 'Light',
+                    subtitle: 'Always use the light theme',
+                  ),
+                  const Divider(height: 1, indent: 52),
+                  _ThemeOption(
+                    value: ThemeMode.dark,
+                    icon: Icons.dark_mode_rounded,
+                    title: 'Dark',
+                    subtitle: 'Always use the dark theme',
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -87,7 +118,11 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.refresh_rounded,
               title: 'Rescan All Screenshots',
               subtitle: 'Clear all data and rescan',
-              trailing: Icon(Icons.chevron_right_rounded, color: sb.textTertiary, size: SBSizes.iconMd),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: sb.textTertiary,
+                size: SBSizes.iconMd,
+              ),
               onTap: () => _confirmRescan(context),
             ),
           ),
@@ -103,24 +138,27 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Scan Interval'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [6, 12, 24, 48, 72].map((hours) {
-            return RadioListTile<int>(
-              title: Text('$hours hours'),
-              value: hours,
-              groupValue: current,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(settingsProvider.notifier).setScanInterval(value);
-                  Navigator.pop(ctx);
-                }
-              },
-            );
-          }).toList(),
+        content: RadioGroup<int>(
+          groupValue: current,
+          onChanged: (value) {
+            if (value != null) {
+              ref.read(settingsProvider.notifier).setScanInterval(value);
+              Navigator.pop(ctx);
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final hours in const <int>[6, 12, 24, 48, 72])
+                RadioListTile<int>(title: Text('$hours hours'), value: hours),
+            ],
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
         ],
       ),
     );
@@ -131,12 +169,20 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rescan All?'),
-        content: const Text('This will clear all existing data and rescan your screenshots. Continue?'),
+        content: const Text(
+          'This will clear all existing data and rescan your screenshots. Continue?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Rescan', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Rescan',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -153,7 +199,38 @@ class _Section extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: SBSpacing.md),
-      child: Text(title, style: theme.textTheme.titleSmall?.copyWith(color: context.sb.textSecondary)),
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: context.sb.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Radio row for the theme-mode selection. Relies on the ancestor
+/// [RadioGroup] for group value + change handling (Flutter >= 3.32).
+class _ThemeOption extends StatelessWidget {
+  final ThemeMode value;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _ThemeOption({
+    required this.value,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<ThemeMode>(
+      value: value,
+      title: Text(title),
+      subtitle: Text(subtitle),
+      secondary: Icon(icon, size: SBSizes.iconMd),
     );
   }
 }
@@ -177,7 +254,10 @@ class _SettingSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm, vertical: SBSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: SBSpacing.sm,
+        vertical: SBSpacing.xs,
+      ),
       child: Row(
         children: [
           Container(
@@ -186,23 +266,29 @@ class _SettingSwitch extends StatelessWidget {
               color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(SBRadius.sm),
             ),
-            child: Icon(icon, size: SBSizes.iconMd, color: theme.colorScheme.primary),
+            child: Icon(
+              icon,
+              size: SBSizes.iconMd,
+              color: theme.colorScheme.primary,
+            ),
           ),
           const SizedBox(width: SBSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: SBSpacing.xxs),
                 Text(subtitle, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-          ),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );
@@ -231,7 +317,10 @@ class _SettingTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(SBRadius.lg),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm, vertical: SBSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: SBSpacing.sm,
+          vertical: SBSpacing.md,
+        ),
         child: Row(
           children: [
             Container(
@@ -240,20 +329,29 @@ class _SettingTile extends StatelessWidget {
                 color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(SBRadius.sm),
               ),
-              child: Icon(icon, size: SBSizes.iconMd, color: theme.colorScheme.primary),
+              child: Icon(
+                icon,
+                size: SBSizes.iconMd,
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(width: SBSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(height: SBSpacing.xxs),
                   Text(subtitle, style: theme.textTheme.bodySmall),
                 ],
               ),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
           ],
         ),
       ),
