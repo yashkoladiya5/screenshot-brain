@@ -106,6 +106,13 @@ only writer into the screenshot table from a gallery scan:
 8. `finally` disposes the ML Kit recognizer **and** resets `scanningProvider`,
    on every exit path including a failed scan.
 
+Auto-scan rides on top of this: `ScanScreenshotsNotifier.scanIfDue()` reads
+`settingsProvider` and runs `scan()` only when the pure `isAutoScanDue` gate
+says so — `autoScanEnabled` on, no stamp yet (or the clock went backwards),
+and at least `scanIntervalHours` elapsed since the notifier's last accepted
+pass. The stamp is kept in the notifier, so a disabled setting never stamps
+and back-to-back calls within the interval are no-ops.
+
 ## Providers worth knowing
 
 | Provider | Kind | Purpose |
@@ -114,7 +121,7 @@ only writer into the screenshot table from a gallery scan:
 | `screenshotListProvider` | `FutureProvider<List<ScreenshotItem>>` | grid source |
 | `screenshotDetailProvider(id)` | `FutureProvider.family` | single screenshot |
 | `searchScreenshotsProvider(query)` | `FutureProvider.family` | ad-hoc query |
-| `scanScreenshotsProvider` | `AsyncNotifierProvider<ScanScreenshotsNotifier, void>` | the scan; `state` carries `AsyncData`/`AsyncError` |
+| `scanScreenshotsProvider` | `AsyncNotifierProvider<ScanScreenshotsNotifier, void>` | the scan; `state` carries `AsyncData`/`AsyncError`; `scanIfDue()` applies the settings cadence |
 | `deleteScreenshotProvider(id)` | `FutureProvider.family` | cascade delete (expenses first, then row) |
 | `scanningProvider` | `StateProvider<bool>` | busy flag |
 | `homeStatsProvider`, `screenshotCountProvider`, `unprocessedCountProvider` | `FutureProvider` | dashboard snapshot |
@@ -183,6 +190,7 @@ Unit tests avoid the native layers by design:
   `screenshotRepositoryProvider.overrideWithValue`.
 - Decision logic is kept in pure, `@visibleForTesting` seams —
   `knownFilePaths`, `filesNotIn`, `newScreenshotModel`, `ScanOutcome`,
+  `isAutoScanDue`,
   `CategorizationService.categorize`, `ExpenseExtractionService.extractAmount`,
   `ScreenshotScannerService.selectNewAssets`/`filterDateWindow` — so behaviour
   is asserted without photo_manager or ML Kit bindings.
