@@ -2,13 +2,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/design/tokens.dart';
-import '../../../core/components/sb_loading.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/error_widget.dart';
+import '../../../core/widgets/loading_widget.dart';
 import '../../../shared/models/screenshot_model.dart';
 import '../../categories/providers/category_provider.dart';
 import '../models/screenshot_item.dart';
 import '../providers/screenshot_provider.dart';
 
+/// Fullscreen screenshot viewer with zoom, Hero transitions, a swipeable
+/// category gallery, and share/delete overlay actions wired through the
+/// existing screenshot providers.
 class ScreenshotViewerScreen extends ConsumerWidget {
   final String screenshotId;
   final String? categoryName;
@@ -19,6 +25,8 @@ class ScreenshotViewerScreen extends ConsumerWidget {
     this.categoryName,
   });
 
+  int get _parsedId => int.tryParse(screenshotId) ?? 0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showGallery = categoryName != null;
@@ -26,62 +34,80 @@ class ScreenshotViewerScreen extends ConsumerWidget {
         ? ref.watch(screenshotsByCategoryProvider(categoryName!))
         : null;
     final singleAsync = !showGallery
-        ? ref.watch(screenshotDetailProvider(int.tryParse(screenshotId) ?? 0))
+        ? ref.watch(screenshotDetailProvider(_parsedId))
         : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: showGallery
-          ? _buildGallery(context, galleryAsync!)
-          : _buildSingle(context, singleAsync!),
+          ? _buildGallery(context, ref, galleryAsync!)
+          : _buildSingle(context, ref, singleAsync!),
+    );
+  }
+
+  /// Shared error surface tuned for the dark viewer: retry re-runs the
+  /// watched query; close leaves the viewer.
+  Widget _errorView(
+    BuildContext context,
+    WidgetRef ref, {
+    required Object error,
+    required VoidCallback retry,
+  }) {
+    return Column(
+      children: [
+        const _ViewerCloseButton(),
+        Expanded(
+          child: AppErrorWidget(
+            title: 'Could not load this screenshot',
+            message: error.toString(),
+            icon: Icons.broken_image_rounded,
+            onRetry: retry,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: SBSpacing.xxl),
+          child: TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('Close', style: TextStyle(color: Colors.white70)),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildGallery(
     BuildContext context,
+    WidgetRef ref,
     AsyncValue<List<ScreenshotModel>> galleryAsync,
   ) {
     return galleryAsync.when(
-      loading: () => const Center(child: SbLoading()),
-      error: (error, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
-            const SizedBox(height: SBSpacing.lg),
-            Text(error.toString(), style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: SBSpacing.lg),
-            TextButton(
-              onPressed: () => context.pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+      loading: () => const LoadingWidget(),
+      error: (error, _) => _errorView(
+        context,
+        ref,
+        error: error,
+        retry: () =>
+            ref.invalidate(screenshotsByCategoryProvider(categoryName!)),
       ),
       data: (screenshots) {
         if (screenshots.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
-                const SizedBox(height: SBSpacing.lg),
-                const Text('No screenshots found', style: TextStyle(color: Colors.white70)),
-                const SizedBox(height: SBSpacing.lg),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Close'),
+          return Column(
+            children: [
+              const _ViewerCloseButton(),
+              const Expanded(
+                child: EmptyStateWidget(
+                  icon: Icons.broken_image_rounded,
+                  title: 'No screenshots found',
+                  semanticsLabel: 'No screenshots in this category',
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         }
-        final currentId = int.tryParse(screenshotId) ?? 0;
-        final initialIndex = screenshots.indexWhere((s) => s.id == currentId);
-        final startIndex = initialIndex >= 0 ? initialIndex : 0;
+        final initialIndex = screenshots.indexWhere((s) => s.id == _parsedId);
         return _GalleryPager(
           screenshots: screenshots,
-          initialIndex: startIndex,
+          initialIndex: initialIndex >= 0 ? initialIndex : 0,
         );
       },
     );
@@ -89,57 +115,158 @@ class ScreenshotViewerScreen extends ConsumerWidget {
 
   Widget _buildSingle(
     BuildContext context,
+    WidgetRef ref,
     AsyncValue<ScreenshotItem?> singleAsync,
   ) {
     return singleAsync.when(
-      loading: () => const Center(child: SbLoading()),
-      error: (error, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
-            const SizedBox(height: SBSpacing.lg),
-            Text(error.toString(), style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: SBSpacing.lg),
-            TextButton(
-              onPressed: () => context.pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+      loading: () => const LoadingWidget(),
+      error: (error, _) => _errorView(
+        context,
+        ref,
+        error: error,
+        retry: () => ref.invalidate(screenshotDetailProvider(_parsedId)),
       ),
       data: (screenshot) {
         if (screenshot == null) {
-          return const Center(child: Text('Screenshot not found', style: TextStyle(color: Colors.white70)));
+          return const Column(
+            children: [
+              _ViewerCloseButton(),
+              Expanded(
+                child: EmptyStateWidget(
+                  icon: Icons.image_not_supported_outlined,
+                  title: 'Screenshot not found',
+                ),
+              ),
+            ],
+          );
         }
-        return _ImageViewer(
-          filePath: screenshot.filePath,
-          heroTag: 'screenshot_${screenshot.id}',
-          onClose: () => context.pop(),
-        );
+        return _ImageViewer(screenshot: screenshot);
       },
     );
   }
 }
 
-class _GalleryPager extends StatefulWidget {
+class _ViewerCloseButton extends StatelessWidget {
+  const _ViewerCloseButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+          tooltip: 'Close',
+          onPressed: () => context.pop(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Overlay action row (share / delete) shared by the single and gallery
+/// viewer modes; both call the same provider-backed mutations.
+class _ViewerActions extends ConsumerWidget {
+  final ScreenshotItem item;
+  final VoidCallback? onDeleted;
+
+  const _ViewerActions({required this.item, this.onDeleted});
+
+  Future<void> _share(WidgetRef ref) =>
+      Share.shareXFiles([XFile(item.filePath)], text: item.extractedText ?? '');
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Screenshot'),
+        content: const Text('Are you sure you want to delete this screenshot?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirmDelete'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      // Provider performs the DB delete and invalidates list/home itself.
+      await ref.read(deleteScreenshotProvider(item.id).future);
+      onDeleted?.call();
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.share_rounded, color: Colors.white, size: 26),
+          tooltip: 'Share',
+          onPressed: () => _share(ref),
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.delete_outline_rounded,
+            color: Colors.white,
+            size: 26,
+          ),
+          tooltip: 'Delete',
+          onPressed: () => _confirmDelete(context, ref),
+        ),
+      ],
+    );
+  }
+}
+
+/// Adapts a [ScreenshotModel] row to the item shape the overlay actions use.
+ScreenshotItem _itemFromModel(ScreenshotModel model) => ScreenshotItem(
+  id: model.id,
+  filePath: model.filePath,
+  thumbnailPath: model.thumbnailPath,
+  extractedText: model.extractedText,
+  category: model.category,
+  createdAt: model.createdAt,
+  fileSize: model.fileSize,
+  isProcessed: model.isProcessed,
+  isExpense: model.isExpense,
+);
+
+class _GalleryPager extends ConsumerStatefulWidget {
   final List<ScreenshotModel> screenshots;
   final int initialIndex;
 
   const _GalleryPager({required this.screenshots, required this.initialIndex});
 
   @override
-  State<_GalleryPager> createState() => _GalleryPagerState();
+  ConsumerState<_GalleryPager> createState() => _GalleryPagerState();
 }
 
-class _GalleryPagerState extends State<_GalleryPager> {
+class _GalleryPagerState extends ConsumerState<_GalleryPager> {
   late PageController _pageController;
   late int _currentIndex;
+  late List<ScreenshotModel> _items;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _items = List.of(widget.screenshots);
+    _currentIndex = widget.initialIndex.clamp(0, _items.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
   }
 
@@ -149,17 +276,34 @@ class _GalleryPagerState extends State<_GalleryPager> {
     super.dispose();
   }
 
+  void _onCurrentDeleted(int deletedId) {
+    final index = _items.indexWhere((s) => s.id == deletedId);
+    if (index < 0) return;
+    setState(() {
+      _items.removeAt(index);
+      if (_items.isEmpty) {
+        context.pop();
+        return;
+      }
+      _currentIndex = index.clamp(0, _items.length - 1);
+    });
+    if (_items.isNotEmpty) {
+      _pageController.jumpToPage(_currentIndex);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final current = _items[_currentIndex];
     return Stack(
       fit: StackFit.expand,
       children: [
         PageView.builder(
           controller: _pageController,
-          itemCount: widget.screenshots.length,
+          itemCount: _items.length,
           onPageChanged: (index) => setState(() => _currentIndex = index),
           itemBuilder: (context, index) {
-            final screenshot = widget.screenshots[index];
+            final screenshot = _items[index];
             return _ZoomableImage(
               filePath: screenshot.filePath,
               heroTag: index == widget.initialIndex
@@ -172,26 +316,47 @@ class _GalleryPagerState extends State<_GalleryPager> {
           top: MediaQuery.of(context).padding.top + 12,
           left: 0,
           right: 0,
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.xs),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(SBRadius.lg),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: SBSpacing.sm),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  tooltip: 'Close',
+                  onPressed: () => context.pop(),
                 ),
-                child: Text(
-                  '${_currentIndex + 1} / ${widget.screenshots.length}',
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                Expanded(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: SBSpacing.md,
+                        vertical: SBSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(SBRadius.lg),
+                      ),
+                      child: Text(
+                        '${_currentIndex + 1} / ${_items.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 48),
-            ],
+                _ViewerActions(
+                  item: _itemFromModel(current),
+                  onDeleted: () => _onCurrentDeleted(current.id),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -199,27 +364,40 @@ class _GalleryPagerState extends State<_GalleryPager> {
   }
 }
 
-class _ImageViewer extends StatelessWidget {
-  final String filePath;
-  final String heroTag;
-  final VoidCallback onClose;
+class _ImageViewer extends ConsumerWidget {
+  final ScreenshotItem screenshot;
 
-  const _ImageViewer({required this.filePath, required this.heroTag, required this.onClose});
+  const _ImageViewer({required this.screenshot});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Center(
-          child: _ZoomableImage(filePath: filePath, heroTag: heroTag),
+          child: _ZoomableImage(
+            filePath: screenshot.filePath,
+            heroTag: 'screenshot_${screenshot.id}',
+          ),
         ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 12,
           left: 12,
-          child: IconButton(
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
-            onPressed: onClose,
+          right: 12,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                tooltip: 'Close',
+                onPressed: () => context.pop(),
+              ),
+              const Spacer(),
+              _ViewerActions(item: screenshot, onDeleted: () => context.pop()),
+            ],
           ),
         ),
       ],
@@ -293,7 +471,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
             child: Image.file(
               File(widget.filePath),
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.broken_image_rounded,
                 color: Colors.white54,
                 size: 64,
