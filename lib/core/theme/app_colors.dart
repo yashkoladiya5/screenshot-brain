@@ -32,6 +32,13 @@ class AppColors {
   static const onError = Color(0xFFFFFFFF);
   static const errorContainer = Color(0xFF450A0A);
 
+  /// Readable foreground on [errorContainer] (was previously the container
+  /// color itself, rendering error text invisible).
+  static const onErrorContainer = Color(0xFFFECACA);
+
+  static const tertiary = Color(0xFF38BDF8);
+  static const onTertiary = Color(0xFF0F172A);
+
   static const textPrimary = Color(0xFFF8FAFC);
   static const textSecondary = Color(0xFF94A3B8);
   static const textTertiary = Color(0xFF64748B);
@@ -60,6 +67,20 @@ class AppColors {
   static const lightSuccess = Color(0xFF059669);
   static const lightWarning = Color(0xFFD97706);
   static const lightError = Color(0xFFDC2626);
+
+  // Light-mode containers and their readable foregrounds.
+  static const lightOnPrimaryContainer = Color(0xFF003544);
+  static const lightOnSecondaryContainer = Color(0xFF3B0764);
+  static const lightSuccessContainer = Color(0xFFD1FAE5);
+  static const lightWarningContainer = Color(0xFFFEF3C7);
+  static const lightErrorContainer = Color(0xFFFEE2E2);
+  static const lightOnErrorContainer = Color(0xFF7F1D1D);
+  static const lightTertiary = Color(0xFF0284C7);
+  static const lightOnTertiary = Color(0xFFF8FAFC);
+  static const lightPrimaryDim = Color(0xFF00BCD4);
+  static const lightSecondaryDim = Color(0xFF7C3AED);
+  static const lightShimmerBase = Color(0xFFE2E8F0);
+  static const lightShimmerHighlight = Color(0xFFF1F5F9);
 
   // Category colors (shared across themes)
   static const categoryPayments = Color(0xFF10B981);

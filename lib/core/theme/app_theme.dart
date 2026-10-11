@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../design/tokens.dart';
 import 'app_colors.dart';
 import 'theme_extensions.dart';
 
@@ -6,58 +7,72 @@ class ScreenshotBrainTheme {
   ScreenshotBrainTheme._();
 
   static ThemeData get dark => _buildTheme(
-        brightness: Brightness.dark,
-        background: AppColors.background,
-        surface: AppColors.surface,
-        card: AppColors.card,
-        elevated: AppColors.elevated,
-        border: AppColors.border,
-        borderLight: AppColors.borderLight,
-        primary: AppColors.primary,
-        onPrimary: AppColors.onPrimary,
-        primaryContainer: AppColors.primaryContainer,
-        onPrimaryContainer: AppColors.onPrimaryContainer,
-        secondary: AppColors.secondary,
-        secondaryContainer: AppColors.secondaryContainer,
-        onSecondaryContainer: AppColors.onSecondaryContainer,
-        success: AppColors.success,
-        successContainer: AppColors.successContainer,
-        warning: AppColors.warning,
-        warningContainer: AppColors.warningContainer,
-        error: AppColors.error,
-        errorContainer: AppColors.errorContainer,
-        textPrimary: AppColors.textPrimary,
-        textSecondary: AppColors.textSecondary,
-        textTertiary: AppColors.textTertiary,
-        textInverse: AppColors.textInverse,
-      );
+    brightness: Brightness.dark,
+    background: AppColors.background,
+    surface: AppColors.surface,
+    card: AppColors.card,
+    elevated: AppColors.elevated,
+    border: AppColors.border,
+    borderLight: AppColors.borderLight,
+    primary: AppColors.primary,
+    onPrimary: AppColors.onPrimary,
+    primaryContainer: AppColors.primaryContainer,
+    onPrimaryContainer: AppColors.onPrimaryContainer,
+    secondary: AppColors.secondary,
+    secondaryContainer: AppColors.secondaryContainer,
+    onSecondaryContainer: AppColors.onSecondaryContainer,
+    tertiary: AppColors.tertiary,
+    onTertiary: AppColors.onTertiary,
+    success: AppColors.success,
+    successContainer: AppColors.successContainer,
+    warning: AppColors.warning,
+    warningContainer: AppColors.warningContainer,
+    error: AppColors.error,
+    errorContainer: AppColors.errorContainer,
+    onErrorContainer: AppColors.onErrorContainer,
+    textPrimary: AppColors.textPrimary,
+    textSecondary: AppColors.textSecondary,
+    textTertiary: AppColors.textTertiary,
+    textInverse: AppColors.textInverse,
+    primaryDim: AppColors.primaryDim,
+    secondaryDim: AppColors.secondaryDim,
+    shimmerBase: AppColors.shimmerBase,
+    shimmerHighlight: AppColors.shimmerHighlight,
+  );
 
   static ThemeData get light => _buildTheme(
-        brightness: Brightness.light,
-        background: AppColors.lightBackground,
-        surface: AppColors.lightSurface,
-        card: AppColors.lightCard,
-        elevated: AppColors.lightElevated,
-        border: AppColors.lightBorder,
-        borderLight: AppColors.lightBorderLight,
-        primary: AppColors.lightPrimary,
-        onPrimary: AppColors.lightBackground,
-        primaryContainer: AppColors.lightPrimaryContainer,
-        onPrimaryContainer: const Color(0xFF003544),
-        secondary: AppColors.lightSecondary,
-        secondaryContainer: AppColors.lightSecondaryContainer,
-        onSecondaryContainer: const Color(0xFF3B0764),
-        success: AppColors.lightSuccess,
-        successContainer: const Color(0xFFD1FAE5),
-        warning: AppColors.lightWarning,
-        warningContainer: const Color(0xFFFEF3C7),
-        error: AppColors.lightError,
-        errorContainer: const Color(0xFFFEE2E2),
-        textPrimary: AppColors.lightTextPrimary,
-        textSecondary: AppColors.lightTextSecondary,
-        textTertiary: AppColors.lightTextTertiary,
-        textInverse: AppColors.lightBackground,
-      );
+    brightness: Brightness.light,
+    background: AppColors.lightBackground,
+    surface: AppColors.lightSurface,
+    card: AppColors.lightCard,
+    elevated: AppColors.lightElevated,
+    border: AppColors.lightBorder,
+    borderLight: AppColors.lightBorderLight,
+    primary: AppColors.lightPrimary,
+    onPrimary: AppColors.lightBackground,
+    primaryContainer: AppColors.lightPrimaryContainer,
+    onPrimaryContainer: AppColors.lightOnPrimaryContainer,
+    secondary: AppColors.lightSecondary,
+    secondaryContainer: AppColors.lightSecondaryContainer,
+    onSecondaryContainer: AppColors.lightOnSecondaryContainer,
+    tertiary: AppColors.lightTertiary,
+    onTertiary: AppColors.lightOnTertiary,
+    success: AppColors.lightSuccess,
+    successContainer: AppColors.lightSuccessContainer,
+    warning: AppColors.lightWarning,
+    warningContainer: AppColors.lightWarningContainer,
+    error: AppColors.lightError,
+    errorContainer: AppColors.lightErrorContainer,
+    onErrorContainer: AppColors.lightOnErrorContainer,
+    textPrimary: AppColors.lightTextPrimary,
+    textSecondary: AppColors.lightTextSecondary,
+    textTertiary: AppColors.lightTextTertiary,
+    textInverse: AppColors.lightBackground,
+    primaryDim: AppColors.lightPrimaryDim,
+    secondaryDim: AppColors.lightSecondaryDim,
+    shimmerBase: AppColors.lightShimmerBase,
+    shimmerHighlight: AppColors.lightShimmerHighlight,
+  );
 
   static ThemeData _buildTheme({
     required Brightness brightness,
@@ -74,16 +89,23 @@ class ScreenshotBrainTheme {
     required Color secondary,
     required Color secondaryContainer,
     required Color onSecondaryContainer,
+    required Color tertiary,
+    required Color onTertiary,
     required Color success,
     required Color successContainer,
     required Color warning,
     required Color warningContainer,
     required Color error,
     required Color errorContainer,
+    required Color onErrorContainer,
     required Color textPrimary,
     required Color textSecondary,
     required Color textTertiary,
     required Color textInverse,
+    required Color primaryDim,
+    required Color secondaryDim,
+    required Color shimmerBase,
+    required Color shimmerHighlight,
   }) {
     final colorScheme = ColorScheme(
       brightness: brightness,
@@ -95,12 +117,14 @@ class ScreenshotBrainTheme {
       onSecondary: textPrimary,
       secondaryContainer: secondaryContainer,
       onSecondaryContainer: onSecondaryContainer,
-      tertiary: const Color(0xFF38BDF8),
-      onTertiary: const Color(0xFF0F172A),
+      tertiary: tertiary,
+      onTertiary: onTertiary,
       error: error,
       onError: Colors.white,
       errorContainer: errorContainer,
-      onErrorContainer: errorContainer,
+      // Previously this was errorContainer itself, which made error
+      // foreground text invisible on its own container.
+      onErrorContainer: onErrorContainer,
       surface: surface,
       onSurface: textPrimary,
       surfaceContainerHighest: card,
@@ -143,7 +167,7 @@ class ScreenshotBrainTheme {
         color: card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(SBRadius.xl),
           side: BorderSide(color: borderLight, width: 1),
         ),
         clipBehavior: Clip.antiAlias,
@@ -154,21 +178,24 @@ class ScreenshotBrainTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: elevated,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: SBSpacing.lg,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(SBRadius.lg),
           borderSide: BorderSide(color: border, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(SBRadius.lg),
           borderSide: BorderSide(color: borderLight, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(SBRadius.lg),
           borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(SBRadius.lg),
           borderSide: BorderSide(color: error, width: 1),
         ),
         hintStyle: TextStyle(color: textTertiary, fontSize: 15),
@@ -184,8 +211,13 @@ class ScreenshotBrainTheme {
           foregroundColor: onPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: SBSpacing.xxl,
+            vertical: 14,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SBRadius.lg),
+          ),
           textStyle: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -202,8 +234,13 @@ class ScreenshotBrainTheme {
           foregroundColor: onPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: SBSpacing.xxl,
+            vertical: 14,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SBRadius.lg),
+          ),
           textStyle: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -230,8 +267,13 @@ class ScreenshotBrainTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: textPrimary,
           side: BorderSide(color: border, width: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: SBSpacing.xxl,
+            vertical: 14,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SBRadius.lg),
+          ),
           textStyle: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -245,8 +287,10 @@ class ScreenshotBrainTheme {
         style: IconButton.styleFrom(
           foregroundColor: textSecondary,
           backgroundColor: Colors.transparent,
-          padding: const EdgeInsets.all(8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.all(SBSpacing.sm),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SBRadius.md),
+          ),
         ),
       ),
 
@@ -255,7 +299,9 @@ class ScreenshotBrainTheme {
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(SBRadius.xxl),
+          ),
         ),
         elevation: 0,
         modalElevation: 0,
@@ -265,7 +311,9 @@ class ScreenshotBrainTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.xxl),
+        ),
         elevation: 0,
       ),
 
@@ -283,8 +331,13 @@ class ScreenshotBrainTheme {
         disabledColor: elevated,
         labelStyle: TextStyle(color: textSecondary, fontSize: 13),
         secondaryLabelStyle: TextStyle(color: textSecondary, fontSize: 13),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: SBSpacing.md,
+          vertical: 6,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.sm),
+        ),
         side: BorderSide.none,
       ),
 
@@ -292,7 +345,9 @@ class ScreenshotBrainTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: elevated,
         contentTextStyle: TextStyle(color: textPrimary, fontSize: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.lg),
+        ),
         behavior: SnackBarBehavior.floating,
         elevation: 0,
       ),
@@ -347,105 +402,105 @@ class ScreenshotBrainTheme {
       // Text
       textTheme: TextTheme(
         displayLarge: TextStyle(
-          fontSize: 34,
+          fontSize: SBTypography.displayLarge,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -1,
           height: 1.1,
         ),
         displayMedium: TextStyle(
-          fontSize: 28,
+          fontSize: SBTypography.displayMedium,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.8,
           height: 1.15,
         ),
         displaySmall: TextStyle(
-          fontSize: 24,
+          fontSize: SBTypography.displaySmall,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.5,
           height: 1.2,
         ),
         headlineLarge: TextStyle(
-          fontSize: 22,
+          fontSize: SBTypography.headlineLarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.3,
           height: 1.25,
         ),
         headlineMedium: TextStyle(
-          fontSize: 20,
+          fontSize: SBTypography.headlineMedium,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.2,
           height: 1.3,
         ),
         headlineSmall: TextStyle(
-          fontSize: 18,
+          fontSize: SBTypography.headlineSmall,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.1,
           height: 1.3,
         ),
         titleLarge: TextStyle(
-          fontSize: 17,
+          fontSize: SBTypography.titleLarge,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.2,
           height: 1.3,
         ),
         titleMedium: TextStyle(
-          fontSize: 15,
+          fontSize: SBTypography.titleMedium,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.1,
           height: 1.3,
         ),
         titleSmall: TextStyle(
-          fontSize: 14,
+          fontSize: SBTypography.titleSmall,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: 0,
           height: 1.3,
         ),
         bodyLarge: TextStyle(
-          fontSize: 16,
+          fontSize: SBTypography.bodyLarge,
           fontWeight: FontWeight.w400,
           color: textPrimary,
           letterSpacing: 0,
           height: 1.5,
         ),
         bodyMedium: TextStyle(
-          fontSize: 14,
+          fontSize: SBTypography.bodyMedium,
           fontWeight: FontWeight.w400,
           color: textPrimary,
           letterSpacing: 0,
           height: 1.5,
         ),
         bodySmall: TextStyle(
-          fontSize: 13,
+          fontSize: SBTypography.bodySmall,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           letterSpacing: 0,
           height: 1.4,
         ),
         labelLarge: TextStyle(
-          fontSize: 14,
+          fontSize: SBTypography.labelLarge,
           fontWeight: FontWeight.w500,
           color: textPrimary,
           letterSpacing: 0,
           height: 1.3,
         ),
         labelMedium: TextStyle(
-          fontSize: 12,
+          fontSize: SBTypography.labelMedium,
           fontWeight: FontWeight.w500,
           color: textSecondary,
           letterSpacing: 0.3,
           height: 1.3,
         ),
         labelSmall: TextStyle(
-          fontSize: 11,
+          fontSize: SBTypography.labelSmall,
           fontWeight: FontWeight.w500,
           color: textTertiary,
           letterSpacing: 0.5,
@@ -478,8 +533,14 @@ class ScreenshotBrainTheme {
         unselectedItemColor: textTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+        selectedLabelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+        ),
       ),
 
       // Floating action button
@@ -488,7 +549,9 @@ class ScreenshotBrainTheme {
         foregroundColor: onPrimary,
         elevation: 0,
         highlightElevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.xl),
+        ),
         extendedTextStyle: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w600,
@@ -501,7 +564,9 @@ class ScreenshotBrainTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: elevated,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.lg),
+        ),
         elevation: 4,
         shadowColor: Colors.black38,
       ),
@@ -512,14 +577,19 @@ class ScreenshotBrainTheme {
           backgroundColor: WidgetStateProperty.all(elevated),
           surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
           shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(SBRadius.lg),
+            ),
           ),
         ),
       ),
 
       // List tile
       listTileTheme: ListTileThemeData(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: SBSpacing.lg,
+          vertical: SBSpacing.xs,
+        ),
         tileColor: Colors.transparent,
         titleTextStyle: TextStyle(
           fontSize: 15,
@@ -537,7 +607,9 @@ class ScreenshotBrainTheme {
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SBRadius.lg),
+        ),
         iconColor: textSecondary,
         textColor: textPrimary,
       ),
@@ -550,9 +622,17 @@ class ScreenshotBrainTheme {
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: primary);
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: primary,
+            );
           }
-          return TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: textTertiary);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: textTertiary,
+          );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -579,18 +659,10 @@ class ScreenshotBrainTheme {
           textSecondary: textSecondary,
           textTertiary: textTertiary,
           textInverse: textInverse,
-          primaryDim: brightness == Brightness.dark
-              ? AppColors.primaryDim
-              : const Color(0xFF00BCD4),
-          secondaryDim: brightness == Brightness.dark
-              ? AppColors.secondaryDim
-              : const Color(0xFF7C3AED),
-          shimmerBase: brightness == Brightness.dark
-              ? AppColors.shimmerBase
-              : const Color(0xFFE2E8F0),
-          shimmerHighlight: brightness == Brightness.dark
-              ? AppColors.shimmerHighlight
-              : const Color(0xFFF1F5F9),
+          primaryDim: primaryDim,
+          secondaryDim: secondaryDim,
+          shimmerBase: shimmerBase,
+          shimmerHighlight: shimmerHighlight,
         ),
       ],
     );
