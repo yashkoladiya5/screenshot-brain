@@ -27,4 +27,20 @@ extension IterableExtensions<T> on Iterable<T> {
     }
     return null;
   }
+
+  /// Groups by [keySelector] and sums [valueSelector] per group.
+  ///
+  /// Int sums stay `int`, mixed int/double sums widen to `double` via
+  /// normal Dart num arithmetic. Typical use: total spend per category.
+  Map<K, num> groupBySum<K>(
+    K Function(T element) keySelector,
+    num Function(T element) valueSelector,
+  ) {
+    final result = <K, num>{};
+    for (final element in this) {
+      final key = keySelector(element);
+      result[key] = (result[key] ?? 0) + valueSelector(element);
+    }
+    return result;
+  }
 }
