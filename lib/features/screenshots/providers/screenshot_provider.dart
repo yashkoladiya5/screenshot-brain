@@ -13,6 +13,7 @@ import '../../../shared/models/screenshot_model.dart';
 import '../models/screenshot_item.dart';
 import '../repositories/screenshot_repository.dart';
 import '../../home/providers/home_provider.dart';
+import '../../settings/providers/settings_provider.dart';
 
 final screenshotRepositoryProvider = Provider<ScreenshotRepository>((ref) {
   return ScreenshotRepository();
@@ -83,6 +84,26 @@ ScreenshotModel newScreenshotModel({
     ..fileSize = sizeInBytes
     ..isProcessed = false
     ..isExpense = false;
+}
+
+/// Whether a scheduled auto-scan may run right now.
+///
+/// Pure gate over [AppSettings]: auto scan is off whenever the user disabled
+/// it, and the interval since [lastAutoScanAt] has not elapsed yet. A missing
+/// stamp (first run after launch) is always due, and a clock that moved
+/// backwards re-arms the scan instead of freezing it for a full interval.
+@visibleForTesting
+bool isAutoScanDue({
+  required bool enabled,
+  required int intervalHours,
+  required DateTime? lastAutoScanAt,
+  required DateTime now,
+}) {
+  if (!enabled) return false;
+  if (lastAutoScanAt == null) return true;
+  final elapsed = now.difference(lastAutoScanAt);
+  if (elapsed.isNegative) return true;
+  return elapsed >= Duration(hours: intervalHours);
 }
 
 /// Outcome counters of one [ScanScreenshotsNotifier.scan] pass.
@@ -252,6 +273,34 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
     } catch (e) {
       debugPrint('[ScanNotifier] Could not publish state: $e');
     }
+  }
+
+  DateTime? _lastAutoScanAt;
+
+  /// When the gated [scanIfDue] last let a pass through, for cadence checks.
+  DateTime? get lastAutoScanAt => _lastAutoScanAt;
+
+  /// Background/scheduled entry point honoring [AppSettings].
+  ///
+  /// Runs [scan] only when the user enabled auto scan and the configured
+  /// interval elapsed since the previous pass. The stamp advances before the
+  /// scan even if it aborts (e.g. database not ready) so a failing cadence
+  /// check cannot storm the gallery with retries inside one interval.
+  Future<bool> scanIfDue({DateTime? now}) async {
+    final settings = ref.read(settingsProvider);
+    final reference = now ?? DateTime.now();
+    if (!isAutoScanDue(
+      enabled: settings.autoScanEnabled,
+      intervalHours: settings.scanIntervalHours,
+      lastAutoScanAt: _lastAutoScanAt,
+      now: reference,
+    )) {
+      debugPrint('[ScanNotifier] Auto-scan not due yet; skipping');
+      return false;
+    }
+    _lastAutoScanAt = reference;
+    await scan();
+    return true;
   }
 
   /// Inserts the row for [file] unless the exact path is already stored.
