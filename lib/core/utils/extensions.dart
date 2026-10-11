@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-extension DateTimeExtension on DateTime {
-  String get formatted => DateFormat('dd MMM yyyy').format(this);
-  String get formattedWithTime => DateFormat('dd MMM yyyy HH:mm').format(this);
-  String get monthYear => DateFormat('MMM yyyy').format(this);
-}
+/// Barrel over the app's core Dart extensions.
+///
+/// `export`s (not duplicate definitions) keep every extension single-homed in
+/// its own library. In particular all `DateTime` behaviour comes from exactly
+/// one extension — [DateTimeExtensions] in `date_extensions.dart` — so an
+/// importer of this barrel can never hit an ambiguous extension member on
+/// `DateTime`.
+export 'date_extensions.dart';
+export 'file_extensions.dart';
+export 'string_casing_extensions.dart';
+export 'string_extensions.dart';
 
 extension StringExtension on String {
-  String get capitalized => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+  String get capitalized =>
+      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
   String get truncated => length > 100 ? '${substring(0, 100)}...' : this;
   bool get isEmail => contains('@');
   bool get isPhoneNumber =>
