@@ -21,7 +21,7 @@ class SbQuantumParticleText extends StatefulWidget {
 
 class _SbQuantumParticleTextState extends State<SbQuantumParticleText> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  List<_Particle> _particles = [];
+  final List<_Particle> _particles = [];
   bool _isExploded = false;
   
   // We use a global key to get the render box of the text to sample its pixels

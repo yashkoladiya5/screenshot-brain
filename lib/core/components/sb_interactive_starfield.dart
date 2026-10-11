@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:ui';
-import 'dart:math' as math;
 
 class SbInteractiveStarfield extends StatefulWidget {
   final int starCount;

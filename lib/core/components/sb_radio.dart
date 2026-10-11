@@ -22,12 +22,15 @@ class SbRadio<T> extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
-    final radio = Radio<T>(
-      value: value,
+    final radio = RadioGroup<T>(
       groupValue: groupValue,
-      onChanged: onChanged,
-      activeColor: activeColor ?? colorScheme.primary,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      onChanged: onChanged ?? (T? newValue) {},
+      child: Radio<T>(
+        value: value,
+        enabled: onChanged != null,
+        activeColor: activeColor ?? colorScheme.primary,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
     );
 
     if (label == null) return radio;

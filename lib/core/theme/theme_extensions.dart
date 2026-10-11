@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-class ScreenshotBrainThemeExtension extends ThemeExtension<ScreenshotBrainThemeExtension> {
+class ScreenshotBrainThemeExtension
+    extends ThemeExtension<ScreenshotBrainThemeExtension> {
   final Color background;
   final Color surface;
   final Color card;
@@ -98,9 +99,17 @@ class ScreenshotBrainThemeExtension extends ThemeExtension<ScreenshotBrainThemeE
       border: Color.lerp(border, other.border, t)!,
       borderLight: Color.lerp(borderLight, other.borderLight, t)!,
       success: Color.lerp(success, other.success, t)!,
-      successContainer: Color.lerp(successContainer, other.successContainer, t)!,
+      successContainer: Color.lerp(
+        successContainer,
+        other.successContainer,
+        t,
+      )!,
       warning: Color.lerp(warning, other.warning, t)!,
-      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      warningContainer: Color.lerp(
+        warningContainer,
+        other.warningContainer,
+        t,
+      )!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
@@ -108,11 +117,16 @@ class ScreenshotBrainThemeExtension extends ThemeExtension<ScreenshotBrainThemeE
       primaryDim: Color.lerp(primaryDim, other.primaryDim, t)!,
       secondaryDim: Color.lerp(secondaryDim, other.secondaryDim, t)!,
       shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t)!,
-      shimmerHighlight: Color.lerp(shimmerHighlight, other.shimmerHighlight, t)!,
+      shimmerHighlight: Color.lerp(
+        shimmerHighlight,
+        other.shimmerHighlight,
+        t,
+      )!,
     );
   }
 }
 
 extension SbTheme on BuildContext {
-  ScreenshotBrainThemeExtension get sb => Theme.of(this).extension<ScreenshotBrainThemeExtension>()!;
+  ScreenshotBrainThemeExtension get sb =>
+      Theme.of(this).extension<ScreenshotBrainThemeExtension>()!;
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../design/tokens.dart';
 
 class SbPriceText extends StatelessWidget {
   final double amount;

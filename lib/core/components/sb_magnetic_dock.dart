@@ -126,9 +126,6 @@ class _DockIcon extends StatelessWidget {
         // A more complex implementation would use GlobalKeys to get exact render box positions,
         // but for a smooth continuous gesture inside a constrained box, estimating is extremely fast and effective.
         
-        // We calculate what percentage of the way across the dock this icon sits
-        final double percentX = (index + 0.5) / totalIcons;
-        
         // If we know the touchX (from the parent), we need to figure out how close the finger is to THIS icon
         double currentSize = baseSize;
         double translateY = 0.0;
@@ -171,7 +168,7 @@ class _DockIcon extends StatelessWidget {
             width: currentSize,
             height: currentSize,
             margin: EdgeInsets.symmetric(horizontal: currentSize * 0.1),
-            transform: Matrix4.identity()..translate(0.0, translateY),
+            transform: Matrix4.identity()..translateByDouble(0.0, translateY, 0.0, 1.0),
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(currentSize * 0.25), // Apple style squircle

@@ -28,7 +28,6 @@ class SbLiquidProgress extends StatefulWidget {
 
 class _SbLiquidProgressState extends State<SbLiquidProgress> with SingleTickerProviderStateMixin {
   late AnimationController _waveController;
-  late Animation<double> _fillAnimation;
   double _oldValue = 0.0;
 
   @override
@@ -40,11 +39,6 @@ class _SbLiquidProgressState extends State<SbLiquidProgress> with SingleTickerPr
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat();
-    
-    // We'll use this controller to animate the fill level as well
-    _fillAnimation = Tween<double>(begin: _oldValue, end: widget.value).animate(
-      CurvedAnimation(parent: _waveController, curve: Curves.easeOutCubic),
-    );
   }
 
   @override
@@ -142,10 +136,6 @@ class _LiquidPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double activeWidth = size.width * fillValue;
     if (activeWidth <= 0) return;
-
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
 
     // We draw two waves to give depth
     _drawWave(canvas, size, activeWidth, wavePhase, color.withValues(alpha: 0.5), amplitude: 6.0, offset: 0);

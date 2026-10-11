@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
-import 'dart:math' as math;
 
 class SbMagneticSlider extends StatefulWidget {
   final double value;
@@ -102,10 +100,6 @@ class _SbMagneticSliderState extends State<SbMagneticSlider> with TickerProvider
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double maxWidth = constraints.maxWidth == double.infinity 
-            ? MediaQuery.of(context).size.width 
-            : constraints.maxWidth;
-            
         return GestureDetector(
           onPanStart: (details) => _onPanStart(details, constraints),
           onPanUpdate: (details) => _onPanUpdate(details, constraints),

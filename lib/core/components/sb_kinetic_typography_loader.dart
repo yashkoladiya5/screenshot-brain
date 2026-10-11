@@ -96,8 +96,8 @@ class _SbKineticTypographyLoaderState extends State<SbKineticTypographyLoader> w
 
               // Apply the transforms
               final Matrix4 transform = Matrix4.identity()
-                ..translate(0.0, translateY)
-                ..scale(stretchX, stretchY);
+                ..translateByDouble(0.0, translateY, 0.0, 1.0)
+                ..scaleByDouble(stretchX, stretchY, stretchX, 1.0);
 
               return Transform(
                 transform: transform,

@@ -107,10 +107,6 @@ class _SbLiquidSliderState extends State<SbLiquidSlider> with TickerProviderStat
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double maxWidth = constraints.maxWidth == double.infinity 
-            ? MediaQuery.of(context).size.width 
-            : constraints.maxWidth;
-            
         return GestureDetector(
           onPanStart: (details) => _onPanStart(details, constraints),
           onPanUpdate: (details) => _onPanUpdate(details, constraints),

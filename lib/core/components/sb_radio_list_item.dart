@@ -39,17 +39,19 @@ class SbRadioListItem<T> extends StatelessWidget {
             SizedBox(
               height: 24,
               width: 24,
-              child: Radio<T>(
-                value: value,
+              child: RadioGroup<T>(
                 groupValue: groupValue,
                 onChanged: onChanged,
-                activeColor: colorScheme.primary,
-                fillColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return colorScheme.primary;
-                  }
-                  return colorScheme.outlineVariant;
-                }),
+                child: Radio<T>(
+                  value: value,
+                  activeColor: colorScheme.primary,
+                  fillColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return colorScheme.primary;
+                    }
+                    return colorScheme.outlineVariant;
+                  }),
+                ),
               ),
             ),
             const SizedBox(width: SBSpacing.md),

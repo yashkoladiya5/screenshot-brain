@@ -30,7 +30,6 @@ class _SbSwipeToActionCardState extends State<SbSwipeToActionCard> with SingleTi
   late AnimationController _controller;
   late Animation<double> _animation;
   double _dragOffset = 0.0;
-  bool _isDragging = false;
   double _screenWidth = 0.0;
 
   @override
@@ -51,7 +50,6 @@ class _SbSwipeToActionCardState extends State<SbSwipeToActionCard> with SingleTi
   void _onPanStart(DragStartDetails details) {
     if (_controller.isAnimating) _controller.stop();
     setState(() {
-      _isDragging = true;
       _screenWidth = MediaQuery.of(context).size.width;
     });
   }
@@ -63,10 +61,6 @@ class _SbSwipeToActionCardState extends State<SbSwipeToActionCard> with SingleTi
   }
 
   void _onPanEnd(DragEndDetails details) {
-    setState(() {
-      _isDragging = false;
-    });
-
     final double velocity = details.primaryVelocity ?? 0.0;
     final double normalizedOffset = _dragOffset / _screenWidth;
 

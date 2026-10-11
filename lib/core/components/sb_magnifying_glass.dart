@@ -90,14 +90,21 @@ class _SbMagnifyingGlassState extends State<SbMagnifyingGlass> {
                       filter: ui.ImageFilter.matrix(
                         (Matrix4.identity()
                               // Move origin to center of magnifier to scale from center
-                              ..translate(
+                              ..translateByDouble(
                                 _magnifierPosition!.dx,
                                 _magnifierPosition!.dy,
+                                0.0,
+                                1.0,
                               )
-                              ..scale(widget.magnificationScale)
-                              ..translate(
+                              ..scaleByDouble(widget.magnificationScale,
+                                  widget.magnificationScale,
+                                  widget.magnificationScale,
+                                  1.0)
+                              ..translateByDouble(
                                 -_magnifierPosition!.dx,
                                 -_magnifierPosition!.dy,
+                                0.0,
+                                1.0,
                               ))
                             .storage,
                       ),

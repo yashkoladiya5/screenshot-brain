@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 class SbLiquidSwipePage extends StatefulWidget {
   final Widget child;
@@ -20,7 +19,6 @@ class SbLiquidSwipePage extends StatefulWidget {
 class _SbLiquidSwipePageState extends State<SbLiquidSwipePage> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   double _dragOffset = 0.0;
-  bool _isDragging = false;
   double _screenWidth = 0.0;
   double _screenHeight = 0.0;
   double _dragY = 0.0; // Where the user is pulling from on the Y axis
@@ -43,7 +41,6 @@ class _SbLiquidSwipePageState extends State<SbLiquidSwipePage> with SingleTicker
   void _onPanStart(DragStartDetails details) {
     if (_controller.isAnimating) _controller.stop();
     setState(() {
-      _isDragging = true;
       _dragY = details.localPosition.dy;
       // We start the drag from the right edge
       _dragOffset = 0.0;
@@ -61,10 +58,6 @@ class _SbLiquidSwipePageState extends State<SbLiquidSwipePage> with SingleTicker
   }
 
   void _onPanEnd(DragEndDetails details) {
-    setState(() {
-      _isDragging = false;
-    });
-
     final double velocity = details.primaryVelocity ?? 0.0;
     final double normalizedOffset = _dragOffset / _screenWidth;
 

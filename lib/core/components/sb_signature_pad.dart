@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'dart:ui' as ui;
 import '../design/tokens.dart';
 
 class SbSignaturePad extends StatefulWidget {

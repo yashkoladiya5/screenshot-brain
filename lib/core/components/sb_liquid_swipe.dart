@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 class SbLiquidSwipe extends StatefulWidget {
   final List<Widget> pages;
@@ -21,7 +20,6 @@ class _SbLiquidSwipeState extends State<SbLiquidSwipe> with SingleTickerProvider
   late AnimationController _animationController;
   int _currentIndex = 0;
   double _dragOffset = 0.0;
-  bool _isDragging = false;
 
   @override
   void initState() {
@@ -40,7 +38,6 @@ class _SbLiquidSwipeState extends State<SbLiquidSwipe> with SingleTickerProvider
 
   void _onPanStart(DragStartDetails details) {
     setState(() {
-      _isDragging = true;
       _dragOffset = 0.0;
     });
   }
@@ -58,10 +55,6 @@ class _SbLiquidSwipeState extends State<SbLiquidSwipe> with SingleTickerProvider
   }
 
   void _onPanEnd(DragEndDetails details, double width) {
-    setState(() {
-      _isDragging = false;
-    });
-    
     // Threshold to switch page
     if (_dragOffset.abs() > width * 0.3 || details.velocity.pixelsPerSecond.dx.abs() > 500) {
       if (_dragOffset > 0) {

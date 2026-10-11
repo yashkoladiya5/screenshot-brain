@@ -21,7 +21,7 @@ class SbInteractiveViewerOverlay extends StatelessWidget {
             opaque: false,
             barrierColor: Colors.black.withValues(alpha: 0.9),
             barrierDismissible: true,
-            pageBuilder: (context, _, __) {
+            pageBuilder: (context, _, _) {
               return Stack(
                 children: [
                   Positioned.fill(

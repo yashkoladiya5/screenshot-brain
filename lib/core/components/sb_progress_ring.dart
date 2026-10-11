@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../design/tokens.dart';
 
 class SbProgressRing extends StatelessWidget {
   final double progress; // 0.0 to 1.0

@@ -24,7 +24,6 @@ class SbSwipeableDeleteItem extends StatefulWidget {
 class _SbSwipeableDeleteItemState extends State<SbSwipeableDeleteItem> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   double _dragOffset = 0.0;
-  bool _isDragging = false;
   bool _willDelete = false;
 
   @override
@@ -42,12 +41,6 @@ class _SbSwipeableDeleteItemState extends State<SbSwipeableDeleteItem> with Sing
     super.dispose();
   }
 
-  void _onPanStart(DragStartDetails details) {
-    setState(() {
-      _isDragging = true;
-    });
-  }
-
   void _onPanUpdate(DragUpdateDetails details) {
     setState(() {
       // Only allow swiping left (negative offset)
@@ -61,10 +54,6 @@ class _SbSwipeableDeleteItemState extends State<SbSwipeableDeleteItem> with Sing
   }
 
   void _onPanEnd(DragEndDetails details) {
-    setState(() {
-      _isDragging = false;
-    });
-    
     final double screenWidth = MediaQuery.of(context).size.width;
     
     // Snap back or delete based on threshold and velocity
@@ -107,7 +96,6 @@ class _SbSwipeableDeleteItemState extends State<SbSwipeableDeleteItem> with Sing
     final double swipePercent = _dragOffset.abs() / MediaQuery.of(context).size.width;
     
     return GestureDetector(
-      onPanStart: _onPanStart,
       onPanUpdate: _onPanUpdate,
       onPanEnd: _onPanEnd,
       onPanCancel: () => _onPanEnd(DragEndDetails()),

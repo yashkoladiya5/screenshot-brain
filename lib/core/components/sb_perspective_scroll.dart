@@ -73,7 +73,7 @@ class _SbPerspectiveScrollState extends State<SbPerspectiveScroll> {
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001) // Perspective
             ..rotateX(rotation) // Rotate vertically
-            ..scale(scale),
+            ..scaleByDouble(scale, scale, scale, 1.0),
           child: Opacity(
             opacity: opacity.clamp(0.0, 1.0),
             child: SizedBox(

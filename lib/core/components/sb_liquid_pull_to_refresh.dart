@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../design/tokens.dart';
 
 class SbLiquidPullToRefresh extends StatefulWidget {
   final Widget child;

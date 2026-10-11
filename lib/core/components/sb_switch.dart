@@ -23,7 +23,7 @@ class SbSwitch extends StatelessWidget {
     final switchWidget = Switch(
       value: value,
       onChanged: onChanged,
-      activeColor: colorScheme.onPrimary,
+      activeThumbColor: colorScheme.onPrimary,
       activeTrackColor: activeColor ?? colorScheme.primary,
       inactiveThumbColor: colorScheme.outline,
       inactiveTrackColor: colorScheme.surfaceContainerHighest,
