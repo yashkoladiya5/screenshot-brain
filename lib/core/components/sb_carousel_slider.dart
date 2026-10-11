@@ -71,9 +71,6 @@ class _SbCarouselSliderState extends State<SbCarouselSlider> {
   Widget build(BuildContext context) {
     if (widget.items.isEmpty) return SizedBox(height: widget.height);
 
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return SizedBox(
       height: widget.height,
       child: Stack(

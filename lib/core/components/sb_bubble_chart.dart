@@ -140,7 +140,7 @@ class _BubblePainter extends CustomPainter {
         colors: [
           Colors.white.withValues(alpha: 0.6),
           bubble.color,
-          bubble.color.withOpacity(0.8), // using raw opacity here as we're mixing with base color
+          bubble.color.withValues(alpha: 0.8), // using raw opacity here as we're mixing with base color
         ],
         stops: const [0.0, 0.4, 1.0],
       );

@@ -24,7 +24,7 @@ class SbColorPicker extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: colors.map((color) {
-          final isSelected = color.value == selectedColor.value;
+          final isSelected = color.toARGB32() == selectedColor.toARGB32();
           
           return Padding(
             padding: EdgeInsets.only(right: spacing),

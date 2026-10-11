@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../design/tokens.dart';
 
 class SbExpandingSearch extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;

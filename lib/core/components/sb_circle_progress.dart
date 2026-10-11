@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../design/tokens.dart';
 
 class SbCircleProgress extends StatelessWidget {
   final double progress; // 0.0 to 1.0
@@ -35,7 +34,7 @@ class SbCircleProgress extends StatelessWidget {
             backgroundColor: bgColor,
             valueColor: AlwaysStoppedAnimation<Color>(progressColor),
           ),
-          if (centerChild != null) centerChild!,
+          ?centerChild,
         ],
       ),
     );

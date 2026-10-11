@@ -127,7 +127,7 @@ class SbCreditCard extends StatelessWidget {
                       ),
                     ),
                     
-                    if (logo != null) logo!,
+                    ?logo,
                   ],
                 ),
                 

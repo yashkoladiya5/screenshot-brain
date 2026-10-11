@@ -65,9 +65,9 @@ class _Sb3DCarouselState extends State<Sb3DCarousel> {
 
           final matrix = Matrix4.identity()
             ..setEntry(3, 2, widget.perspective) // Apply perspective
-            ..translate(0.0, 0.0, translateZ) // Push back
+            ..translateByDouble(0.0, 0.0, translateZ, 1.0) // Push back
             ..rotateY(rotateY) // Rotate towards center
-            ..scale(scale); // Scale down
+            ..scaleByDouble(scale, scale, scale, 1.0); // Scale down
 
           return Transform(
             transform: matrix,

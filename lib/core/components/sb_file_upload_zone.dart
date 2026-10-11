@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../design/tokens.dart';
-import 'dart:math' as math;
 
 class SbFileUploadZone extends StatefulWidget {
   final String title;

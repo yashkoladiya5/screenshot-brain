@@ -38,7 +38,7 @@ class SbCircularAvatar extends StatelessWidget {
         radius: size / 2,
         backgroundImage: NetworkImage(imageUrl!),
         backgroundColor: colorScheme.surfaceContainerHighest,
-        onBackgroundImageError: (_, __) {
+        onBackgroundImageError: (_, _) {
           // If image fails, it falls back to background color naturally
         },
       );

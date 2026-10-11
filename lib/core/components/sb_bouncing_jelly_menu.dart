@@ -180,7 +180,7 @@ class _SbBouncingJellyMenuState extends State<SbBouncingJellyMenu> with TickerPr
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOutBack,
-                          transform: Matrix4.identity()..translate(0.0, isActive ? -8.0 : 0.0),
+                          transform: Matrix4.identity()..translateByDouble(0.0, isActive ? -8.0 : 0.0, 0.0, 1.0),
                           child: Icon(
                             widget.icons[index],
                             color: isActive ? Colors.white : Colors.black54,

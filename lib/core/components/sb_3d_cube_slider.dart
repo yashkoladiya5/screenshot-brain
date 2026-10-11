@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../design/tokens.dart';
 
 class Sb3DCubeSlider extends StatefulWidget {
   final List<Widget> children;
@@ -73,7 +72,7 @@ class _Sb3DCubeSliderState extends State<Sb3DCubeSlider> {
             alignment: value < 0 ? Alignment.centerRight : Alignment.centerLeft,
             transform: Matrix4.identity()
               ..setEntry(3, 2, 0.001) // perspective
-              ..translate(x, 0.0, -z) // Move back and shift
+              ..translateByDouble(x, 0.0, -z, 1.0) // Move back and shift
               ..rotateY(rotationY), // Rotate
             child: Stack(
               fit: StackFit.expand,

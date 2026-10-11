@@ -142,8 +142,8 @@ class _SbBouncingBallLoaderState extends State<SbBouncingBallLoader> with Single
                 bottom: widget.size * 0.2, // Base floor level
                 child: Transform(
                   transform: Matrix4.identity()
-                    ..translate(0.0, translateY)
-                    ..scale(stretchX, stretchY),
+                    ..translateByDouble(0.0, translateY, 0.0, 1.0)
+                    ..scaleByDouble(stretchX, stretchY, stretchX, 1.0),
                   alignment: Alignment.bottomCenter, // Anchor at the very bottom
                   child: Container(
                     width: ballRadius * 2,

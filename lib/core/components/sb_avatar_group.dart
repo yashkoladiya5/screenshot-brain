@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../design/tokens.dart';
-import 'sb_avatar.dart'; // Assuming this exists or falls back to basic
+// Assuming this exists or falls back to basic
 
 class SbAvatarGroup extends StatelessWidget {
   final List<String> imageUrls;

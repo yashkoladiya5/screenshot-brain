@@ -9,11 +9,11 @@ class SbBouncingScrollPhysics extends ScrollPhysics {
   final double mass;
 
   const SbBouncingScrollPhysics({
-    ScrollPhysics? parent,
+    super.parent,
     this.springStiffness = 200.0,
     this.springDamping = 15.0,
     this.mass = 0.5,
-  }) : super(parent: parent);
+  });
 
   @override
   SbBouncingScrollPhysics applyTo(ScrollPhysics? ancestor) {
@@ -32,7 +32,6 @@ class SbBouncingScrollPhysics extends ScrollPhysics {
         damping: springDamping,
       );
 
-  @override
   double frictionFactor(double overscrollFraction) {
     // Standard bouncing physics friction is 0.52 * pow(1 - overscroll, 2)
     // We make it slightly looser (0.6) for a more dramatic stretch

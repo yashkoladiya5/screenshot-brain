@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../design/tokens.dart';
 
 class SbCyberButton extends StatefulWidget {
   final String text;
@@ -41,6 +40,7 @@ class _SbCyberButtonState extends State<SbCyberButton> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final double pressScale = _isPressed ? 0.95 : 1.0;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -53,7 +53,7 @@ class _SbCyberButtonState extends State<SbCyberButton> with SingleTickerProvider
         onTapCancel: () => setState(() => _isPressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          transform: Matrix4.identity()..scale(_isPressed ? 0.95 : 1.0),
+          transform: Matrix4.identity()..scaleByDouble(pressScale, pressScale, pressScale, 1.0),
           child: CustomPaint(
             painter: _CyberPainter(
               animation: _controller,

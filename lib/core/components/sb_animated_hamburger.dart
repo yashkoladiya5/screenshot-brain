@@ -74,10 +74,12 @@ class _SbAnimatedHamburgerState extends State<SbAnimatedHamburger> with SingleTi
                 Transform(
                   alignment: Alignment.center,
                   transform: Matrix4.identity()
-                    ..translate(
+                    ..translateByDouble(
                       0.0,
                       // Move down to center
                       (widget.size / 3) * progress,
+                      0.0,
+                      1.0,
                     )
                     ..rotateZ(progress * math.pi / 4),
                   child: Align(
@@ -116,10 +118,12 @@ class _SbAnimatedHamburgerState extends State<SbAnimatedHamburger> with SingleTi
                 Transform(
                   alignment: Alignment.center,
                   transform: Matrix4.identity()
-                    ..translate(
+                    ..translateByDouble(
                       0.0,
                       // Move up to center
                       -(widget.size / 3) * progress,
+                      0.0,
+                      1.0,
                     )
                     ..rotateZ(-progress * math.pi / 4),
                   child: Align(

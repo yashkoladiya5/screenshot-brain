@@ -99,7 +99,7 @@ class _Sb3dFoldingCubeState extends State<Sb3dFoldingCube> with SingleTickerProv
                     _buildFace(
                       index: 0,
                       transform: Matrix4.identity()
-                        ..translate(0.0, 0.0, widget.size / 2 * foldProgress), 
+                        ..translateByDouble(0.0, 0.0, widget.size / 2 * foldProgress, 1.0), 
                         // It pushes out along Z as it folds to keep the cube centered
                     ),
                     
@@ -107,36 +107,36 @@ class _Sb3dFoldingCubeState extends State<Sb3dFoldingCube> with SingleTickerProv
                     _buildFace(
                       index: 1,
                       transform: Matrix4.identity()
-                        ..translate(0.0, -widget.size / 2, widget.size / 2 * foldProgress) // Move to top edge
+                        ..translateByDouble(0.0, -widget.size / 2, widget.size / 2 * foldProgress, 1.0) // Move to top edge
                         ..rotateX(foldAngle) // Fold it
-                        ..translate(0.0, widget.size / 2, 0.0), // Move pivot back
+                        ..translateByDouble(0.0, widget.size / 2, 0.0, 1.0), // Move pivot back
                     ),
                     
                     // FACE 2: BACK (Folds up from Bottom's bottom edge)
                     _buildFace(
                       index: 2,
                       transform: Matrix4.identity()
-                        ..translate(0.0, widget.size / 2, widget.size / 2 * foldProgress)
+                        ..translateByDouble(0.0, widget.size / 2, widget.size / 2 * foldProgress, 1.0)
                         ..rotateX(-foldAngle)
-                        ..translate(0.0, -widget.size / 2, 0.0),
+                        ..translateByDouble(0.0, -widget.size / 2, 0.0, 1.0),
                     ),
                     
                     // FACE 3: LEFT (Folds up from Bottom's left edge)
                     _buildFace(
                       index: 3,
                       transform: Matrix4.identity()
-                        ..translate(-widget.size / 2, 0.0, widget.size / 2 * foldProgress)
+                        ..translateByDouble(-widget.size / 2, 0.0, widget.size / 2 * foldProgress, 1.0)
                         ..rotateY(-foldAngle)
-                        ..translate(widget.size / 2, 0.0, 0.0),
+                        ..translateByDouble(widget.size / 2, 0.0, 0.0, 1.0),
                     ),
                     
                     // FACE 4: RIGHT (Folds up from Bottom's right edge)
                     _buildFace(
                       index: 4,
                       transform: Matrix4.identity()
-                        ..translate(widget.size / 2, 0.0, widget.size / 2 * foldProgress)
+                        ..translateByDouble(widget.size / 2, 0.0, widget.size / 2 * foldProgress, 1.0)
                         ..rotateY(foldAngle)
-                        ..translate(-widget.size / 2, 0.0, 0.0),
+                        ..translateByDouble(-widget.size / 2, 0.0, 0.0, 1.0),
                     ),
                     
                     // FACE 5: TOP (Chained off the FRONT face)
@@ -144,11 +144,11 @@ class _Sb3dFoldingCubeState extends State<Sb3dFoldingCube> with SingleTickerProv
                     _buildFace(
                       index: 5,
                       transform: Matrix4.identity()
-                        ..translate(0.0, -widget.size / 2, widget.size / 2 * foldProgress) // Anchor to Front's top
+                        ..translateByDouble(0.0, -widget.size / 2, widget.size / 2 * foldProgress, 1.0) // Anchor to Front's top
                         ..rotateX(foldAngle) // First fold (Front)
-                        ..translate(0.0, -widget.size, 0.0) // Move to top edge of Front
+                        ..translateByDouble(0.0, -widget.size, 0.0, 1.0) // Move to top edge of Front
                         ..rotateX(foldAngle) // Second fold (Top)
-                        ..translate(0.0, widget.size / 2, 0.0), // Move pivot
+                        ..translateByDouble(0.0, widget.size / 2, 0.0, 1.0), // Move pivot
                     ),
                   ],
                 ),

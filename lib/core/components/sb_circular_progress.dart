@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../design/tokens.dart';
 
 class SbCircularProgress extends StatefulWidget {
   final double value; // 0.0 to 1.0

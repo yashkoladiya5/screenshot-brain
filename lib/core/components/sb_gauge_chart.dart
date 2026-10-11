@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../design/tokens.dart';
 
 class SbGaugeChart extends StatelessWidget {
   final double value; // 0.0 to 1.0

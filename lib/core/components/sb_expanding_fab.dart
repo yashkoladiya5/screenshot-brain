@@ -138,7 +138,6 @@ class _SbExpandingFabState extends State<SbExpandingFab> with SingleTickerProvid
 
     for (int i = 0; i < count; i++) {
       final angleInDegrees = step * i;
-      final angleInRadians = angleInDegrees * math.pi / 180.0;
       final item = widget.items[i];
 
       children.add(
