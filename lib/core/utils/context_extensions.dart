@@ -10,6 +10,18 @@ extension BuildContextExtensions on BuildContext {
   /// Quick access to TextTheme.
   TextTheme get textTheme => Theme.of(this).textTheme;
 
+  /// The brightness the app is currently rendering with (after the user's
+  /// [ThemeMode] selection has been resolved by [MaterialApp]).
+  Brightness get brightness => Theme.of(this).brightness;
+
+  /// Whether the rendered theme is dark — mirrors the inline
+  /// `Theme.of(context).brightness == Brightness.dark` checks screens use.
+  bool get isDark => brightness == Brightness.dark;
+
+  /// The rendered brightness expressed as a [ThemeMode] (useful when feeding
+  /// APIs that expect a mode rather than a resolved brightness).
+  ThemeMode get themeMode => isDark ? ThemeMode.dark : ThemeMode.light;
+
   /// Quick access to MediaQuery sizing.
   Size get screenSize => MediaQuery.sizeOf(this);
 
