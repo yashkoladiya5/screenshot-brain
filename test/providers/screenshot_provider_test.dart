@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screenshot_brain/features/categories/providers/category_provider.dart';
+import 'package:screenshot_brain/features/expenses/providers/expense_provider.dart';
+import 'package:screenshot_brain/features/home/providers/home_provider.dart';
 import 'package:screenshot_brain/features/screenshots/models/screenshot_item.dart';
 import 'package:screenshot_brain/features/screenshots/providers/screenshot_provider.dart';
 import 'package:screenshot_brain/features/screenshots/repositories/screenshot_repository.dart';
@@ -64,11 +67,16 @@ class _FakeRepo implements ScreenshotRepository {
       throw UnimplementedError('${invocation.memberName} is not needed');
 }
 
-ScreenshotItem item({int id = 1, String filePath = '/sdcard/a.png'}) {
+ScreenshotItem item({
+  int id = 1,
+  String filePath = '/sdcard/a.png',
+  bool isProcessed = false,
+}) {
   return ScreenshotItem(
     id: id,
     filePath: filePath,
     createdAt: DateTime.utc(2025),
+    isProcessed: isProcessed,
   );
 }
 
@@ -174,12 +182,13 @@ void main() {
       expect(outcome.changedAnything, isFalse);
       expect(outcome.discovered, 0);
       expect(outcome.persisted, 0);
+      expect(outcome.reprocessed, 0);
       expect(outcome.duplicatesSkipped, 0);
       expect(outcome.failures, 0);
       expect(
         outcome.toString(),
         'ScanOutcome(databaseReady: true, discovered: 0, persisted: 0, '
-        'duplicatesSkipped: 0, failures: 0)',
+        'reprocessed: 0, duplicatesSkipped: 0, failures: 0)',
       );
     });
 
@@ -196,6 +205,47 @@ void main() {
         isFalse,
       );
       expect(const ScanOutcome(persisted: 1).changedAnything, isTrue);
+    });
+
+    test('changedAnything is true for retry-only passes', () {
+      // A scan that only re-enriches previously failed rows writes new
+      // categories/expenses without persisting a single file; the caches
+      // behind the category badges must still refresh.
+      expect(
+        const ScanOutcome(
+          discovered: 5,
+          reprocessed: 2,
+          failures: 1,
+        ).changedAnything,
+        isTrue,
+      );
+      // Pure failures change nothing observable in the stored data.
+      expect(
+        const ScanOutcome(discovered: 5, failures: 2).changedAnything,
+        isFalse,
+      );
+    });
+  });
+
+  group('unprocessedRows', () {
+    test('returns only rows still queued for enrichment, in order', () {
+      final rows = unprocessedRows([
+        item(id: 1, filePath: '/a.png', isProcessed: true),
+        item(id: 2, filePath: '/b.png'),
+        item(id: 3, filePath: '/c.png', isProcessed: true),
+        item(id: 4, filePath: '/d.png'),
+      ]);
+      expect(rows.map((row) => row.id), [2, 4]);
+    });
+
+    test('rows with a blank path never enter the retry queue', () {
+      // A half-written row cannot be re-opened as a File; queueing it would
+      // fail on every scan and inflate the failure count forever.
+      expect(unprocessedRows([item(filePath: '')]), isEmpty);
+    });
+
+    test('empty input yields an empty queue', () {
+      expect(unprocessedRows(const <ScreenshotItem>[]), isEmpty);
     });
   });
 
@@ -295,6 +345,101 @@ void main() {
       await container.read(scanScreenshotsProvider.notifier).scan();
       expect(calls, 2);
     });
+  });
+
+  group('mutation cache invalidation', () {
+    // Every provider whose data is computed from the screenshot/expense
+    // tables must be invalidated after a scan or a delete. The category
+    // badges (categoryCountsProvider), the per-category listings
+    // (screenshotsByCategoryProvider) and the expense dashboard
+    // (expenseListProvider) were previously left serving pre-mutation data —
+    // this pins the full set down.
+    test(
+      'invalidate covers the list, home, category and expense caches',
+      () async {
+        var listBuilds = 0;
+        var homeBuilds = 0;
+        var countsBuilds = 0;
+        var byCategoryBuilds = 0;
+        var expenseBuilds = 0;
+
+        final container = ProviderContainer(
+          overrides: [
+            screenshotRepositoryProvider.overrideWithValue(_FakeRepo()),
+            screenshotListProvider.overrideWith((ref) async {
+              listBuilds++;
+              return const <ScreenshotItem>[];
+            }),
+            homeStatsProvider.overrideWith((ref) async {
+              homeBuilds++;
+              return const HomeStats(
+                screenshotCount: 0,
+                expenseCount: 0,
+                unprocessedCount: 0,
+                totalExpenses: 0.0,
+                recentExpenses: [],
+              );
+            }),
+            categoryCountsProvider.overrideWith((ref) async {
+              countsBuilds++;
+              return const <String, int>{};
+            }),
+            screenshotsByCategoryProvider.overrideWith((ref, category) async {
+              byCategoryBuilds++;
+              return const <ScreenshotModel>[];
+            }),
+            expenseListProvider.overrideWith((ref) async {
+              expenseBuilds++;
+              return const [];
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // Prime the caches with active listeners so invalidation rebuilds them.
+        container.listen(screenshotListProvider, (_, _) {});
+        container.listen(homeStatsProvider, (_, _) {});
+        container.listen(categoryCountsProvider, (_, _) {});
+        container.listen(screenshotsByCategoryProvider('Bills'), (_, _) {});
+        container.listen(expenseListProvider, (_, _) {});
+        await pumpEventQueue();
+        expect(
+          [
+            listBuilds,
+            homeBuilds,
+            countsBuilds,
+            byCategoryBuilds,
+            expenseBuilds,
+          ],
+          [1, 1, 1, 1, 1],
+        );
+
+        container
+            .read(scanScreenshotsProvider.notifier)
+            .invalidateMutationCaches();
+        await pumpEventQueue();
+
+        expect(listBuilds, 2, reason: 'the screenshot list cache must rebuild');
+        expect(homeBuilds, 2, reason: 'the home stats must rebuild');
+        expect(
+          countsBuilds,
+          2,
+          reason: 'category badges kept showing pre-scan/pre-delete counts',
+        );
+        expect(
+          byCategoryBuilds,
+          2,
+          reason: 'the per-category listing kept showing stale screenshots',
+        );
+        expect(
+          expenseBuilds,
+          2,
+          reason:
+              'scan writes expenses and delete removes them; the expense '
+              'dashboard must not serve pre-mutation rows',
+        );
+      },
+    );
   });
 }
 

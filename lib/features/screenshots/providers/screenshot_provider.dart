@@ -12,6 +12,8 @@ import '../../../shared/models/expense_model.dart';
 import '../../../shared/models/screenshot_model.dart';
 import '../models/screenshot_item.dart';
 import '../repositories/screenshot_repository.dart';
+import '../../categories/providers/category_provider.dart';
+import '../../expenses/providers/expense_provider.dart';
 import '../../home/providers/home_provider.dart';
 import '../../settings/providers/settings_provider.dart';
 
@@ -66,6 +68,20 @@ List<File> filesNotIn(List<File> discovered, Set<String> knownPaths) {
   return discovered.where((file) => !knownPaths.contains(file.path)).toList();
 }
 
+/// Rows the database holds but has never finished enriching.
+///
+/// A scan only processes files whose path is *unknown* to the database, so a
+/// row whose OCR/categorization failed would never be touched again without
+/// this retry queue (its file is known by then). Rows without a usable path
+/// are left out: they cannot be re-opened as a [File], and queueing them
+/// would fail — and be counted as a failure — on every single scan.
+@visibleForTesting
+List<ScreenshotItem> unprocessedRows(Iterable<ScreenshotItem> items) {
+  return items
+      .where((item) => !item.isProcessed && item.filePath.isNotEmpty)
+      .toList();
+}
+
 /// Builds the fresh [ScreenshotModel] row for a discovered file.
 ///
 /// Kept side-effect free (and `@visibleForTesting`) so the persistence shape
@@ -113,6 +129,7 @@ class ScanOutcome {
     this.databaseReady = true,
     this.discovered = 0,
     this.persisted = 0,
+    this.reprocessed = 0,
     this.duplicatesSkipped = 0,
     this.failures = 0,
   });
@@ -123,6 +140,7 @@ class ScanOutcome {
     : databaseReady = false,
       discovered = 0,
       persisted = 0,
+      reprocessed = 0,
       duplicatesSkipped = 0,
       failures = 0;
 
@@ -135,6 +153,9 @@ class ScanOutcome {
   /// Rows inserted into the database.
   final int persisted;
 
+  /// Previously stored rows whose failed enrichment was retried successfully.
+  final int reprocessed;
+
   /// Files already present in the database.
   final int duplicatesSkipped;
 
@@ -143,14 +164,34 @@ class ScanOutcome {
 
   bool get wasAborted => !databaseReady;
 
-  /// Whether anything new landed, i.e. whether cached lists must refresh.
-  bool get changedAnything => persisted > 0;
+  /// Whether stored data changed, i.e. whether cached lists and counts must
+  /// refresh. Retried enrichments count too: they write new categories and
+  /// expense rows even though no file was persisted.
+  bool get changedAnything => persisted > 0 || reprocessed > 0;
 
   @override
   String toString() =>
       'ScanOutcome(databaseReady: $databaseReady, discovered: $discovered, '
-      'persisted: $persisted, duplicatesSkipped: $duplicatesSkipped, '
-      'failures: $failures)';
+      'persisted: $persisted, reprocessed: $reprocessed, '
+      'duplicatesSkipped: $duplicatesSkipped, failures: $failures)';
+}
+
+/// Invalidates every provider cache computed from the screenshot/expense
+/// tables.
+///
+/// A scan (persist, enrich, retry) and a delete mutate those tables directly;
+/// any cache left out here keeps serving pre-mutation data until an unrelated
+/// refresh happens to fire. That previously affected the category badges
+/// ([categoryCountsProvider]) and per-category listings
+/// ([screenshotsByCategoryProvider]) after scans and deletes, and the expense
+/// dashboard ([expenseListProvider]) after deletes removed the screenshot's
+/// expense rows.
+void _invalidateMutationCaches(Ref ref) {
+  ref.invalidate(screenshotListProvider);
+  ref.invalidate(homeStatsProvider);
+  ref.invalidate(categoryCountsProvider);
+  ref.invalidate(screenshotsByCategoryProvider);
+  ref.invalidate(expenseListProvider);
 }
 
 /// Imports new screenshots from the device gallery and runs OCR on them.
@@ -159,10 +200,12 @@ class ScanOutcome {
 /// * the [OcrService] (a native ML Kit recognizer holding a camera-vision
 ///   handle) is disposed on **every** exit path, including errors thrown
 ///   mid-loop, via `try/finally`;
-/// * a failure on one file is logged and counted, and never aborts the batch
-///   nor discards the row already written for that file — OCR/categorization
-///   errors are isolated a second time inside the row so the screenshot stays
-///   queued (`isProcessed == false`) for a later retry;
+/// * a failure on one file is logged and counted in [ScanOutcome.failures],
+///   and never aborts the batch nor discards the row already written for that
+///   file. The row stays queued (`isProcessed == false`) and the *next* scan
+///   re-enriches it through the [unprocessedRows] retry queue — scans only
+///   look at unknown files, so without that queue a failed row would be
+///   stranded forever and the home unprocessed count could never reach zero;
 /// * `scanningProvider` is always reset, cached lists are only invalidated
 ///   when work actually landed, and Isar access is gated by the
 ///   `DatabaseService.isInitialized` ready check instead of relying on the
@@ -191,16 +234,23 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
     OcrService? ocrService;
     var discovered = 0;
     var persisted = 0;
+    var reprocessed = 0;
     var duplicatesSkipped = 0;
     var failures = 0;
     var outcome = const ScanOutcome();
     try {
       final repo = ref.read(screenshotRepositoryProvider);
 
+      // One stored snapshot feeds both the scanner pre-filter and the retry
+      // queue, so rows persisted earlier in this same pass are never picked
+      // up twice.
+      final stored = await repo.getAllScreenshots();
+      final knownPaths = knownFilePaths(stored);
+      final pending = unprocessedRows(stored);
+
       // Hand the already-known paths to the scanner so it can skip resolving
       // them; the per-file check below stays as a cheap correctness guard
       // against races between concurrent scans.
-      final knownPaths = knownFilePaths(await repo.getAllScreenshots());
       final files = await ScreenshotScannerService.scanScreenshots(
         knownPaths: knownPaths,
       );
@@ -227,9 +277,26 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
         }
       }
 
+      // Retry queue: enrichment failures from previous passes left these
+      // rows isProcessed == false; their files are known now, so this is the
+      // only path that ever processes them again.
+      for (final row in pending) {
+        try {
+          await _enrichWithOcr(repo, ocrService, File(row.filePath), row.id);
+          reprocessed++;
+        } catch (e, st) {
+          failures++;
+          debugPrint(
+            '[ScanNotifier] Retry error for id=${row.id} '
+            '(${row.filePath}): $e\n$st',
+          );
+        }
+      }
+
       outcome = ScanOutcome(
         discovered: discovered,
         persisted: persisted,
+        reprocessed: reprocessed,
         duplicatesSkipped: duplicatesSkipped,
         failures: failures,
       );
@@ -240,10 +307,9 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
       );
 
       if (outcome.changedAnything) {
-        ref.invalidate(screenshotListProvider);
-        ref.invalidate(homeStatsProvider);
+        _invalidateMutationCaches(ref);
         debugPrint(
-          '[ScanNotifier] Invalidated screenshotListProvider and homeStatsProvider',
+          '[ScanNotifier] Invalidated screenshot, home, category and expense caches',
         );
       }
       _publishState(const AsyncData<void>(null));
@@ -252,6 +318,7 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
       outcome = ScanOutcome(
         discovered: discovered,
         persisted: persisted,
+        reprocessed: reprocessed,
         duplicatesSkipped: duplicatesSkipped,
         failures: failures + 1,
       );
@@ -274,6 +341,11 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
       debugPrint('[ScanNotifier] Could not publish state: $e');
     }
   }
+
+  /// The exact cache invalidation [scan] performs when a pass changed stored
+  /// data. Exposed so tests can pin the invalidated provider set down.
+  @visibleForTesting
+  void invalidateMutationCaches() => _invalidateMutationCaches(ref);
 
   DateTime? _lastAutoScanAt;
 
@@ -333,34 +405,36 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
 
   /// OCR + categorization + expense extraction for one stored row.
   ///
-  /// Failures here are contained: the screenshot row stays in the database
-  /// flagged `isProcessed == false` so the unprocessed queue picks it up on a
-  /// later scan.
+  /// Throws to the caller on any failure so the per-file isolation counts it
+  /// in [ScanOutcome.failures] (swallowing here previously made enrichment
+  /// failures invisible while still claiming a clean scan). The row keeps
+  /// `isProcessed == false` whenever OCR or categorization fails — the write
+  /// that flips the flag is sequenced last — so the next scan's
+  /// [unprocessedRows] queue retries it.
   Future<void> _enrichWithOcr(
     ScreenshotRepository repo,
     OcrService ocrService,
     File file,
     int id,
   ) async {
-    try {
-      final text = await ocrService.extractTextFromFile(file);
-      debugPrint('[ScanNotifier] OCR text length=${text.length} for id=$id');
-      await repo.updateExtractedText(id, text);
+    final text = await ocrService.extractTextFromFile(file);
+    debugPrint('[ScanNotifier] OCR text length=${text.length} for id=$id');
 
-      final category = CategorizationService.categorize(text);
-      debugPrint('[ScanNotifier] Category="$category" for id=$id');
-      await repo.updateCategory(id, category);
+    final category = CategorizationService.categorize(text);
+    debugPrint('[ScanNotifier] Category="$category" for id=$id');
+    await repo.updateCategory(id, category);
 
-      if (CategorizationService.isExpense(text)) {
-        await repo.markAsExpense(id, true);
-        final expense = ExpenseExtractionService.extractExpense(text, id);
-        await DatabaseService.db.writeTxn(
-          () => DatabaseService.db.expenseModels.put(expense),
-        );
-        debugPrint('[ScanNotifier] Marked as expense id=$id');
-      }
-    } catch (e) {
-      debugPrint('[ScanNotifier] OCR/categorize error for $id: $e');
+    // Marks the row processed; ordered after categorization so a failure in
+    // any earlier step leaves the row queued for retry.
+    await repo.updateExtractedText(id, text);
+
+    if (CategorizationService.isExpense(text)) {
+      await repo.markAsExpense(id, true);
+      final expense = ExpenseExtractionService.extractExpense(text, id);
+      await DatabaseService.db.writeTxn(
+        () => DatabaseService.db.expenseModels.put(expense),
+      );
+      debugPrint('[ScanNotifier] Marked as expense id=$id');
     }
   }
 }
@@ -380,7 +454,6 @@ final deleteScreenshotProvider = FutureProvider.family<void, int>((
     () => db.expenseModels.filter().screenshotIdEqualTo(id).deleteAll(),
   );
   await repo.deleteScreenshot(id);
-  ref.invalidate(screenshotListProvider);
-  ref.invalidate(homeStatsProvider);
-  debugPrint('[DeleteProvider] Deleted screenshot id=$id');
+  _invalidateMutationCaches(ref);
+  debugPrint('[DeleteProvider] Deleted screenshot id=$id (caches invalidated)');
 });
