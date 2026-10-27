@@ -4,6 +4,29 @@ import '../../../services/database_service.dart';
 import '../../../shared/models/expense_model.dart';
 import '../models/expense_item.dart';
 
+/// Inclusive upper bound of the calendar day containing [date], expressed as
+/// the last microsecond of that day (`23:59:59.999999`) and not `23:59:59`.
+///
+/// Isar's `between` filter includes both bounds, so a `23:59:59` end bound
+/// silently drops anything timestamped in the final second of the day (Isar
+/// stores sub-second `DateTime` precision). Pairing it with
+/// [AnalyticsService.dateOnly] on the lower side gives every query the same
+/// day-granularity window the analytics layer re-filters with.
+DateTime endOfDayInclusive(DateTime date) =>
+    DateTime(date.year, date.month, date.day, 23, 59, 59, 999, 999);
+
+/// Inclusive `[start, end]` window Isar should use for the calendar month of
+/// [month] (its day and time components are ignored).
+(DateTime, DateTime) monthQueryWindow(DateTime month) {
+  final start = DateTime(month.year, month.month, 1);
+  return (start, endOfDayInclusive(DateTime(month.year, month.month + 1, 0)));
+}
+
+/// Inclusive `[start, end]` window Isar should use for the period a caller
+/// means as `[start, end]` at day granularity.
+(DateTime, DateTime) periodQueryWindow(DateTime start, DateTime end) =>
+    (AnalyticsService.dateOnly(start), endOfDayInclusive(end));
+
 class ExpenseRepository {
   final Isar db = DatabaseService.db;
 
@@ -13,8 +36,7 @@ class ExpenseRepository {
   }
 
   Future<List<ExpenseItem>> getExpensesByMonth(DateTime month) async {
-    final startOfMonth = DateTime(month.year, month.month, 1);
-    final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+    final (startOfMonth, endOfMonth) = monthQueryWindow(month);
     final models = await db.expenseModels
         .filter()
         .expenseDateBetween(startOfMonth, endOfMonth)
@@ -63,11 +85,15 @@ class ExpenseRepository {
   }
 
   /// Total spent (sum of amounts) with effective expense date inside
-  /// `[start, end]` (inclusive).
+  /// `[start, end]` (inclusive at day granularity, matching
+  /// [AnalyticsService.totalAmount]). The Isar window is widened to whole
+  /// days so a late-day timestamp is never dropped before the analytics
+  /// filter gets to judge it.
   Future<double> getTotalForPeriod(DateTime start, DateTime end) async {
+    final (windowStart, windowEnd) = periodQueryWindow(start, end);
     final models = await db.expenseModels
         .filter()
-        .expenseDateBetween(start, end)
+        .expenseDateBetween(windowStart, windowEnd)
         .findAll();
     return AnalyticsService.totalAmount(models, start: start, end: end);
   }
@@ -80,12 +106,10 @@ class ExpenseRepository {
   }) async {
     final startMonth = AnalyticsService.monthStart(from);
     final endMonth = AnalyticsService.monthStart(to ?? DateTime.now());
+    final (_, windowEnd) = monthQueryWindow(endMonth);
     final models = await db.expenseModels
         .filter()
-        .expenseDateBetween(
-          startMonth,
-          DateTime(endMonth.year, endMonth.month + 1, 0, 23, 59, 59),
-        )
+        .expenseDateBetween(startMonth, windowEnd)
         .findAll();
     return AnalyticsService.monthlyExpenseSeries(models, from: from, to: to);
   }

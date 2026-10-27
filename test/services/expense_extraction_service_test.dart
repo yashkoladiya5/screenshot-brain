@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screenshot_brain/services/expense_extraction_service.dart';
 import 'package:screenshot_brain/shared/models/expense_model.dart';
+import 'package:screenshot_brain/core/utils/string_validators.dart';
 
 void main() {
   group('extractAmount', () {
@@ -245,6 +246,287 @@ void main() {
       final expense = ExpenseExtractionService.extractExpense('a' * 250, 1);
       expect(expense.description!.length, 203);
       expect(expense.description!.endsWith('...'), isTrue);
+    });
+  });
+
+  // ----------------------------------------------------------------- defects
+  // Every expectation below was proven against the shipped parser first: the
+  // inputs are real OCR shapes (bills priced `Rs. 500/-`, phone numbers
+  // grouped `98765 43210`, sentence-initial `From Big Bazaar`, lowercase
+  // payees, tagline lines) that the old code dropped or mis-read.
+
+  group('extractAmount Indian "/-" bill notation', () {
+    test('reads the trailing "/-" (and "/=") price marker as an amount', () {
+      expect(ExpenseExtractionService.extractAmount('Total Rs. 500/-'), 500.0);
+      expect(
+        ExpenseExtractionService.extractAmount('Grand Total ₹1,200.00/-'),
+        1200.0,
+      );
+      expect(
+        ExpenseExtractionService.extractAmount('Amount 1,29,900/-'),
+        129900.0,
+      );
+      expect(ExpenseExtractionService.extractAmount('Rs 250/= only'), 250.0);
+      expect(ExpenseExtractionService.extractAmount('500/-'), 500.0);
+    });
+
+    test('still rejects slash-separated dates and fractions', () {
+      expect(
+        ExpenseExtractionService.extractAmount('Payment done on 12/05/2024'),
+        isNull,
+      );
+      expect(ExpenseExtractionService.extractAmount('page 3/10'), isNull);
+      expect(
+        ExpenseExtractionService.extractAmount('Total 1,200 dated 05/12/2024'),
+        1200.0,
+      );
+    });
+  });
+
+  group('extractAmount digit ceiling shared with StringValidators', () {
+    test('a 9-digit magnitude amount is money, 10+ digits is a reference', () {
+      expect(
+        ExpenseExtractionService.extractAmount('Amount 123456789'),
+        123456789.0,
+      );
+      expect(ExpenseExtractionService.extractAmount('₹999999999'), 999999999.0);
+      expect(ExpenseExtractionService.extractAmount('₹9999999999'), isNull);
+      expect(ExpenseExtractionService.extractAmount('call 9876543210'), isNull);
+    });
+
+    test('stays in lockstep with the validators single source of truth', () {
+      // lib/core/utils/string_validators.dart mirrors this pipeline; any drift
+      // means a form accepts an amount extraction can never produce (or the
+      // other way round).
+      for (final amount in [
+        '50',
+        '1299.90',
+        '1299,90',
+        '1,299',
+        '1,299.90',
+        '1,29,900',
+        '1,29,900.50',
+        '1.299,90',
+        '12345678',
+        '123456789',
+        '999999999',
+        '9999999999',
+        '1234567890123',
+      ]) {
+        expect(
+          ExpenseExtractionService.extractAmount('Total $amount'),
+          StringValidators.parseAmount(amount),
+          reason: 'pipeline and validator disagree on "$amount"',
+        );
+      }
+      for (final amount in ['₹1,29,900', 'Rs. 450', 'INR 2,500', '1,234.56']) {
+        expect(
+          ExpenseExtractionService.extractAmount('Total $amount'),
+          StringValidators.parseAmount(amount),
+          reason: 'pipeline and validator disagree on "$amount"',
+        );
+      }
+    });
+  });
+
+  group('extractAmount space-grouped number runs', () {
+    test('rejects phones and card numbers split by spaces', () {
+      expect(
+        ExpenseExtractionService.extractAmount('call 98765 43210'),
+        isNull,
+      );
+      expect(ExpenseExtractionService.extractAmount('98765 43210'), isNull);
+      expect(
+        ExpenseExtractionService.extractAmount('card 4111 1111 1111 1112'),
+        isNull,
+      );
+      expect(
+        ExpenseExtractionService.extractAmount('utr 123456 789012 345678'),
+        isNull,
+      );
+    });
+
+    test('keeps genuine amounts that merely sit next to small numbers', () {
+      expect(
+        ExpenseExtractionService.extractAmount('Sl no 1 Amount 250'),
+        250.0,
+      );
+      expect(
+        ExpenseExtractionService.extractAmount('Items 5\nTotal: 450'),
+        450.0,
+      );
+      expect(
+        ExpenseExtractionService.extractAmount('2 tablets 500 mg ₹1,200'),
+        1200.0,
+      );
+    });
+  });
+
+  group('extractDate ordinals and month-name punctuation', () {
+    test('parses ordinal day suffixes', () {
+      expect(
+        ExpenseExtractionService.extractDate('Paid on 1st Jan 2024'),
+        DateTime(2024, 1, 1),
+      );
+      expect(
+        ExpenseExtractionService.extractDate('Invoice dated 22nd October 2024'),
+        DateTime(2024, 10, 22),
+      );
+      expect(
+        ExpenseExtractionService.extractDate('5th March, 2024'),
+        DateTime(2024, 3, 5),
+      );
+      expect(
+        ExpenseExtractionService.extractDate('31st Dec 2024'),
+        DateTime(2024, 12, 31),
+      );
+    });
+
+    test('parses a comma between the month name and the day', () {
+      expect(
+        ExpenseExtractionService.extractDate('January, 5, 2024'),
+        DateTime(2024, 1, 5),
+      );
+      expect(
+        ExpenseExtractionService.extractDate('Dec., 5 2024'),
+        DateTime(2024, 12, 5),
+      );
+    });
+
+    test('ordinals never turn a phone or ref run into a date', () {
+      expect(
+        ExpenseExtractionService.extractDate('Ref 1234567890123456'),
+        isNull,
+      );
+      expect(ExpenseExtractionService.extractDate('2nd Feb 9999'), isNull);
+    });
+  });
+
+  group('extractMerchant real-OCR shapes', () {
+    test('drops trailing punctuation instead of losing the name', () {
+      expect(
+        ExpenseExtractionService.extractMerchant('Paid to BigBasket!'),
+        'BigBasket',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Paid to BigBasket! Total 350',
+        ),
+        'BigBasket',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant('Merchant: Croma?'),
+        'Croma',
+      );
+    });
+
+    test('keeps looking after a label match that is only noise', () {
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Paid via UPI\nPaid to BigBasket',
+        ),
+        'BigBasket',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Paid through Paytm Merchant\nsent to Anil Kitchen',
+        ),
+        'Anil Kitchen',
+      );
+    });
+
+    test('matches a sentence-initial From / At label', () {
+      expect(
+        ExpenseExtractionService.extractMerchant('From Big Bazaar on 12/05'),
+        'Big Bazaar',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant('At Decathlon for ₹4,999'),
+        'Decathlon',
+      );
+    });
+
+    test('keeps a lowercase payee as the OCR spelled it', () {
+      expect(
+        ExpenseExtractionService.extractMerchant('₹350 paid to bigbasket'),
+        'bigbasket',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant('sent to alexa.'),
+        'alexa',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'paid to rajesh kumar for lunch',
+        ),
+        'rajesh kumar',
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant('paid to upi id'),
+        isNull,
+      );
+    });
+
+    test('refuses taglines and domain lines in the fallback', () {
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Best Offers Online\nTotal ₹350',
+        ),
+        isNull,
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Www.Bigbasket.Com\nTotal ₹350',
+        ),
+        isNull,
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Pay Using Our App\nTotal ₹350',
+        ),
+        isNull,
+      );
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'India\'s Largest Marketplace\nTotal ₹350',
+        ),
+        isNull,
+      );
+    });
+
+    test('still returns the real merchant from a noisy receipt', () {
+      expect(
+        ExpenseExtractionService.extractMerchant(
+          'Best Offers Online\nSpice Garden\nTotal ₹1,200',
+        ),
+        'Spice Garden',
+      );
+    });
+  });
+
+  group('category priority wiring', () {
+    test('every keyword category is ranked, so none is ignored', () {
+      ExpenseModel cat(String t) =>
+          ExpenseExtractionService.extractExpense(t, 1);
+      expect(cat('doctor clinic visit medicine').category, 'Healthcare');
+      expect(cat('zomato swiggy dinner restaurant').category, 'Food');
+      expect(cat('irctc boarding pass train').category, 'Travel');
+      expect(cat('netflix hotstar cinema movie').category, 'Entertainment');
+      expect(cat('electricity bill recharge broadband').category, 'Bills');
+      expect(cat('amazon flipkart myntra clothes').category, 'Shopping');
+    });
+
+    test('ties resolve by the documented priority, not table order', () {
+      // 'zomato' (Food, 6) vs 'amazon' (Shopping, 6): Food is ranked before
+      // Shopping, so Food must win regardless of map iteration order.
+      expect(
+        ExpenseExtractionService.extractExpense('amazon zomato', 1).category,
+        'Food',
+      );
+      expect(
+        ExpenseExtractionService.extractExpense('zomato amazon', 1).category,
+        'Food',
+      );
     });
   });
 }

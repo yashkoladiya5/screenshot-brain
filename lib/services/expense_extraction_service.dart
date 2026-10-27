@@ -29,6 +29,16 @@ class ExpenseExtractionService {
     caseSensitive: false,
   );
 
+  static final RegExp _digitRe = RegExp(r'\d');
+
+  /// Longest digit run that can still be money. Kept identical to
+  /// `StringValidators._maxAmountDigits` (the form side of the same rule):
+  /// longer runs are UTR / reference / card numbers.
+  static const int _maxAmountDigits = 9;
+
+  /// Digit totals at or above this are one number split across spaces.
+  static const int _maxSpacedClusterDigits = 10;
+
   /// Extracts the most likely expense amount from [text].
   ///
   /// Candidates are collected from three passes, best bucket wins, and within
@@ -36,8 +46,10 @@ class ExpenseExtractionService {
   /// 1. numbers on lines mentioning total / amount paid / payable,
   /// 2. currency-tagged numbers (₹, $, €, £, Rs., INR, USD, EUR, GBP),
   /// 3. bare numbers as a last resort.
-  /// Dates (12/05/2024, 05-Dec-2024), phone numbers and long reference
-  /// numbers are rejected.
+  /// Dates (12/05/2024, 05-Dec-2024), phone numbers (`9876543210` and the
+  /// space-grouped `98765 43210`) and long reference numbers are rejected.
+  /// The Indian bill notation that closes a price with `/-.` (`Rs. 500/-`) is
+  /// accepted as an amount.
   static double? extractAmount(String text) {
     if (text.trim().isEmpty) return null;
 
@@ -79,19 +91,51 @@ class ExpenseExtractionService {
 
   /// Parses [raw] into a positive amount, rejecting fragments of longer digit
   /// runs, dates/phones (digit adjacent to `/`, `-` or another digit outside
-  /// the match) and implausibly long digit strings (reference numbers).
+  /// the match), whitespace-split phone/card clusters and implausibly long
+  /// digit strings (reference numbers).
   static double? _validatedNumber(String haystack, int offset, String raw) {
     final end = offset + raw.length;
+    bool digitAt(int i) =>
+        i >= 0 && i < haystack.length && _digitRe.hasMatch(haystack[i]);
     final before = offset > 0 ? haystack[offset - 1] : '';
     final after = end < haystack.length ? haystack[end] : '';
-    // Glued to a date/phone/range separator or another digit: not an amount.
-    if (before == '/' || after == '/' || before == '-' || after == '-') {
-      return null;
-    }
-    if (RegExp(r'\d').hasMatch(before) || RegExp(r'\d').hasMatch(after)) {
+    // Glued to a hyphenated date / range or to another digit: not an amount.
+    if (before == '-' || after == '-') return null;
+    if (digitAt(offset - 1) || digitAt(end)) return null;
+    // A slash only disqualifies the number when it joins digits (`12/05`,
+    // `3/10`). Bills and invoices close the price with `/-.` — `Rs. 500/-`,
+    // `1,200/=` — where nothing numeric follows the slash, and treating that
+    // marker as a date separator dropped the total of the whole receipt.
+    if (before == '/' && digitAt(offset - 2)) return null;
+    if (after == '/' && digitAt(end + 1)) return null;
+    // `98765 43210` / `4111 1111 1111 1112`: OCR splits phones, UTRs and card
+    // numbers on spaces, which makes every group look like an amount.
+    if (_spacedClusterDigits(haystack, offset, end) >=
+        _maxSpacedClusterDigits) {
       return null;
     }
     return _parseNumber(raw);
+  }
+
+  /// Total digits in the run of number groups that continues [raw] across
+  /// inline spaces (line breaks end the run, so a total on the next line is
+  /// never folded into the group above it).
+  static int _spacedClusterDigits(String haystack, int offset, int end) {
+    final leftGroup = RegExp(r'(\d+)[ \t]+$');
+    final rightGroup = RegExp(r'^[ \t]+(\d+)');
+    var start = offset;
+    var stop = end;
+    while (start > 0) {
+      final match = leftGroup.firstMatch(haystack.substring(0, start));
+      if (match == null) break;
+      start = match.start;
+    }
+    while (stop < haystack.length) {
+      final match = rightGroup.firstMatch(haystack.substring(stop));
+      if (match == null) break;
+      stop += match[0]!.length;
+    }
+    return _digitRe.allMatches(haystack.substring(start, stop)).length;
   }
 
   static double? _parseNumber(String raw) {
@@ -118,15 +162,13 @@ class ExpenseExtractionService {
       // 1299.90
       value = double.tryParse(s);
     } else if (RegExp(r'^\d+$').hasMatch(s)) {
-      final digits = s;
-      if (digits.length > 8) return null; // phone / UTR / ref number
-      value = double.tryParse(digits);
+      value = double.tryParse(s);
     } else {
       return null; // malformed grouping like 1,29990
     }
 
     final digits = s.replaceAll(RegExp(r'\D'), '');
-    if (digits.length > 9) return null;
+    if (digits.length > _maxAmountDigits) return null;
     if (value == null || !value.isFinite || value <= 0) return null;
     return value;
   }
@@ -134,12 +176,25 @@ class ExpenseExtractionService {
   // -------------------------------------------------------------- merchant
 
   static final List<RegExp> _merchantPatterns = [
+    // `[ \t]` and not `\s`: the label sits at the end of a line on real OCR
+    // output ("... Paytm Merchant\nsent to Anil Kitchen"), and a `\s*` between
+    // the label and the capture walked over the newline and grabbed the next
+    // line instead.
     RegExp(
-      r'(?:paid\s+to|sent\s+to|transferred?\s+to|payment\s+to|paid\s+via|debited\s+from|merchant\s+name|merchant|vendor|store|seller)\s*[:\-]?\s*(.+)',
+      r'(?:paid[ \t]+to|sent[ \t]+to|transferred?[ \t]+to|payment[ \t]+to|'
+      r'paid[ \t]+via|debited[ \t]+from|merchant[ \t]+name|merchant|vendor|'
+      r'store|seller)[ \t]*[:\-]?[ \t]*(.+)',
       caseSensitive: false,
     ),
+    // The label is matched letter by letter so the captured name keeps its
+    // case-sensitive `[A-Z]` requirement: a single `caseSensitive: false` flag
+    // would fold the class too and let "at sent to Anil" win with "sent".
+    // OCR capitalises the label whenever it opens a line ("From Big Bazaar on
+    // 12/05"), which the previous lower-case-only pattern threw away.
     RegExp(
-      r"(?:from|at)\s+([A-Z][A-Za-z&'\.]+(?:\s+[A-Z][A-Za-z&'\.]+){0,3})(?=\s+(?:on|at|for|₹|\$|€|£|Rs|\d|\.|,|;|$))",
+      r"\b(?:[Ff][Rr][Oo][Mm]|[Aa][Tt])[ \t]+"
+      r"([A-Z][A-Za-z&'\.]+(?:[ \t]+[A-Z][A-Za-z&'\.]+){0,3})"
+      r'(?=\s+(?:on|at|for|₹|\$|€|£|Rs|\d|\.|,|;|$))',
     ),
   ];
 
@@ -148,16 +203,70 @@ class ExpenseExtractionService {
     caseSensitive: false,
   );
 
+  /// Words that close a merchant name when OCR glues the next field onto the
+  /// payee line (`BigBasket! Total 350`, `sent to kirana store for milk`).
+  static final RegExp _merchantStopWordRe = RegExp(
+    r'^(?:total|subtotal|amount|paid|pay|date|time|status|txn|transaction|ref|'
+    r'reference|balance|item|items|tax|gst|discount|change|tendered|utr|upi|'
+    r'cash|card|order|id|for|and|or|the|a|an|to|at|of|in|on|my|me|our|your|'
+    r'this|that|from|by|via|is|was|with)\b',
+    caseSensitive: false,
+  );
+
+  /// Punctuation OCR sticks to the end of a payee word (`BigBasket!`,
+  /// `Croma?`, `Bata-`). The final `.` is kept because it also marks the end
+  /// of the name.
+  static final RegExp _trailingPunctRe = RegExp(r'[!?*:,]+$');
+
+  static final RegExp _titleWordRe = RegExp(r"^[A-Z][A-Za-z&'\.]*$");
+  static final RegExp _lowerWordRe = RegExp(r"^[a-z][a-z&'\.]*$");
+
+  /// Marketing prose that reads exactly like a merchant name to the fallback
+  /// (every word title-cased, no digits) but never is one.
+  static const Set<String> _taglineWords = {
+    'best',
+    'biggest',
+    'largest',
+    'trusted',
+    'leading',
+    'online',
+    'marketplace',
+    'offers',
+    'offer',
+    'deals',
+    'deal',
+    'discount',
+    'save',
+    'guaranteed',
+    'visit',
+    'website',
+    'download',
+    'app',
+    'wow',
+    'free',
+    'promo',
+  };
+
+  /// Domain-looking fallback lines (`Www.Bigbasket.Com`) are a URL, not the
+  /// store name.
+  static final RegExp _domainWordRe = RegExp(
+    r'(?:\bwww\b|\.(?:com|net|org|in|co|io|app|dev|info|biz)\b)',
+    caseSensitive: false,
+  );
+
   /// Best-effort merchant / payee / store name from [text].
   ///
-  /// Tries explicit "paid to / sent to / merchant ..." patterns first, then
+  /// Tries explicit "paid to / sent to / merchant ..." labels first, then
   /// falls back to the first line that looks like a proper name (letters
-  /// only, title-cased, 1-4 words).
+  /// only, title-cased, 1-4 words). Every labelled match is examined, not just
+  /// the first one, because the label that appears first on a receipt is often
+  /// noise ("Paid via UPI" above the real "Paid to BigBasket").
   static String? extractMerchant(String text) {
     for (final pattern in _merchantPatterns) {
-      final match = pattern.firstMatch(text);
-      final merchant = _cleanMerchant(match?.group(1));
-      if (merchant != null) return merchant;
+      for (final match in pattern.allMatches(text)) {
+        final merchant = _cleanMerchant(match.group(1));
+        if (merchant != null) return merchant;
+      }
     }
 
     // Fallback: first name-like line, skipping OCR noise.
@@ -179,11 +288,21 @@ class ExpenseExtractionService {
       RegExp(r'[₹$€£\d]|\b(?:INR|USD|EUR|GBP|Rs)\b'),
     );
     if (cut >= 0) merchant = merchant.substring(0, cut);
-    // Keep only the leading run of capitalized words ("Swiggy for lunch" -> "Swiggy").
-    final words = merchant.split(RegExp(r'\s+'));
+    final words = merchant
+        .split(RegExp(r'\s+'))
+        .map((w) => w.replaceAll(_trailingPunctRe, ''))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    // Keep the leading run of name words ("Swiggy for lunch" -> "Swiggy").
+    // A run that starts lowercase is kept too (OCR spells payees in lower
+    // case), but the run must stay in one case so prose after the name still
+    // cuts it off.
     final kept = <String>[];
     for (final w in words) {
-      if (!RegExp(r"^[A-Z][A-Za-z&'\.]*$").hasMatch(w)) break;
+      if (_merchantStopWordRe.hasMatch(w)) break;
+      final title = _titleWordRe.hasMatch(w);
+      if (!title && !_lowerWordRe.hasMatch(w)) break;
+      if (kept.isNotEmpty && _titleWordRe.hasMatch(kept.first) != title) break;
       kept.add(w);
       // A word ending with "." closes the name (sentence boundary).
       if (w.endsWith('.') || kept.length == 4) break;
@@ -200,10 +319,14 @@ class ExpenseExtractionService {
     if (_noiseLineRe.hasMatch(s)) return false;
     // No currency/digit noise: real merchant names in receipts are letters.
     if (RegExp(r'(?:₹|\$|€|£|\d|[:/])').hasMatch(s)) return false;
+    if (_domainWordRe.hasMatch(s)) return false;
     final words = s.split(RegExp(r'\s+'));
     if (words.length > 4) return false;
+    // Taglines ("Best Offers Online") are title-cased marketing prose, not a
+    // store name.
+    if (words.any((w) => _taglineWords.contains(w.toLowerCase()))) return false;
     // Every word must start with a capital letter (or all-caps brand).
-    return words.every((w) => RegExp(r"^[A-Z][A-Za-z&'\.]*$").hasMatch(w));
+    return words.every((w) => _titleWordRe.hasMatch(w));
   }
 
   // ------------------------------------------------------------------ date
@@ -228,21 +351,22 @@ class ExpenseExtractionService {
   );
 
   static final RegExp _dayMonthYearRe = RegExp(
-    r'(?<!\d)(\d{1,2})[\s.\-/]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?[\s,\-/]+(\d{2,4})(?!\d)',
+    r'(?<!\d)(\d{1,2})(?:st|nd|rd|th)?[\s.\-/]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?[\s,\-/]+(\d{2,4})(?!\d)',
     caseSensitive: false,
   );
 
   static final RegExp _monthDayYearRe = RegExp(
-    r'(?<!\d)(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?[\s]+(\d{1,2}),?[\s]+(\d{2,4})(?!\d)',
+    r'(?<!\d)(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?[\s]+(\d{1,2}),?[\s]+(\d{2,4})(?!\d)',
     caseSensitive: false,
   );
 
   /// Extracts the transaction date from OCR [text].
   ///
   /// Understands `dd/mm/yyyy` (and `mm/dd` when the day slot can only be a
-  /// month), `dd Mon yyyy`, `Mon dd, yyyy`. Two-digit years are expanded
-  /// (<30 -> 20xx). Impossible calendar dates (31 Feb, month 13, year outside
-  /// 1900..now+5y) are rejected and scanning continues.
+  /// month), `dd Mon yyyy` (also with an ordinal day: `1st Jan 2024`),
+  /// `Mon dd, yyyy` (with or without a comma after the month name). Two-digit
+  /// years are expanded (<30 -> 20xx). Impossible calendar dates (31 Feb,
+  /// month 13, year outside 1900..now+5y) are rejected and scanning continues.
   static DateTime? extractDate(String text) {
     if (text.trim().isEmpty) return null;
 
