@@ -138,12 +138,44 @@ void main() {
       ]);
 
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('row vanished'), findsOneWidget);
+      expect(
+        find.text("We couldn't load these details. Please try again."),
+        findsOneWidget,
+      );
+      // Was a defect: this asserted the raw 'row vanished' dump on screen.
+      expect(find.textContaining('row vanished'), findsNothing);
 
       await tester.tap(find.byKey(const Key('appErrorRetryButton')));
       await tester.pumpAndSettle();
 
       expect(attempts, greaterThan(1));
+    });
+
+    testWidgets('a failed delete shows a friendly message, not an exception '
+        'dump', (tester) async {
+      await _openDetail(tester, [
+        screenshotDetailProvider.overrideWith(
+          (ref, id) async => _item(text: 'short text'),
+        ),
+        deleteScreenshotProvider.overrideWith((ref, id) async {
+          throw StateError('isar write failed');
+        }),
+      ]);
+
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirmDelete')));
+      await tester.pumpAndSettle();
+
+      // Friendly action...
+      expect(
+        find.text('Could not delete this screenshot.'),
+        findsOneWidget,
+      );
+      // ...and no raw `Delete failed: <error>` dump in the tree.
+      expect(find.textContaining('isar write failed'), findsNothing);
+      // A failed delete must not pop the screen.
+      expect(find.text('Details'), findsOneWidget);
     });
 
     testWidgets('long extracted text collapses by default and expands on '

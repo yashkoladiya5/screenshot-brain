@@ -115,7 +115,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('isar closed'), findsOneWidget);
+      expect(
+        find.text("We couldn't load your screenshots. Please try again."),
+        findsOneWidget,
+      );
+      // Was a defect: this asserted the raw 'isar closed' dump on screen.
+      expect(find.textContaining('isar closed'), findsNothing);
 
       await tester.tap(find.byKey(const Key('appErrorRetryButton')));
       await tester.pumpAndSettle();
@@ -280,7 +285,12 @@ void main() {
 
       expect(calls, greaterThan(1));
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('refresh exploded'), findsOneWidget);
+      expect(
+        find.text("We couldn't load your screenshots. Please try again."),
+        findsOneWidget,
+      );
+      // Was a defect: this asserted the raw 'refresh exploded' dump on screen.
+      expect(find.textContaining('refresh exploded'), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 

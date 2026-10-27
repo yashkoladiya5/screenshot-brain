@@ -42,13 +42,23 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
           message: 'Loading $categoryName screenshots...',
           icon: Icons.photo_library_rounded,
         ),
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load screenshots',
-          message: error.toString(),
-          icon: Icons.photo_library_outlined,
-          onRetry: () =>
-              ref.invalidate(screenshotsByCategoryProvider(categoryName)),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint(
+            '[CategoryScreenshots] Could not load $categoryName screenshots: '
+            '$error\n$stack',
+          );
+          return AppErrorWidget(
+            title: 'Could not load screenshots',
+            message:
+                "We couldn't load the screenshots in this category. "
+                'Please try again.',
+            icon: Icons.photo_library_outlined,
+            onRetry: () =>
+                ref.invalidate(screenshotsByCategoryProvider(categoryName)),
+          );
+        },
         data: (screenshots) {
           if (screenshots.isEmpty) {
             return EmptyStateWidget(

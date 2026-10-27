@@ -79,12 +79,19 @@ class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
         // Previously this branch swallowed the failure behind a plain
         // message; now it surfaces through the shared error widget with a
         // retry that invalidates and re-runs the query.
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load screenshots',
-          message: error.toString(),
-          retryLabel: 'Try again',
-          onRetry: () => ref.invalidate(screenshotListProvider),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint(
+            '[ScreenshotList] Could not load screenshots: $error\n$stack',
+          );
+          return AppErrorWidget(
+            title: 'Could not load screenshots',
+            message: "We couldn't load your screenshots. Please try again.",
+            retryLabel: 'Try again',
+            onRetry: () => ref.invalidate(screenshotListProvider),
+          );
+        },
         data: (screenshots) {
           // The chip badges come from categoryCountsProvider, which buckets
           // uncategorized rows (category == null) into `Other`. Filtering on

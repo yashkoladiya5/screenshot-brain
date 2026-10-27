@@ -43,12 +43,17 @@ class CategoriesScreen extends ConsumerWidget {
           message: 'Loading categories...',
           icon: Icons.category_rounded,
         ),
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load categories',
-          message: error.toString(),
-          icon: Icons.category_outlined,
-          onRetry: () => ref.invalidate(categoryCountsProvider),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint('[Categories] Could not load categories: $error\n$stack');
+          return AppErrorWidget(
+            title: 'Could not load categories',
+            message: "We couldn't load your categories. Please try again.",
+            icon: Icons.category_outlined,
+            onRetry: () => ref.invalidate(categoryCountsProvider),
+          );
+        },
         data: (counts) {
           final totalScreenshots = counts.values.fold(0, (a, b) => a + b);
           if (totalScreenshots == 0) {

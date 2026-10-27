@@ -98,7 +98,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('database unavailable'), findsOneWidget);
+      // The user sees a short, actionable sentence...
+      expect(
+        find.text("We couldn't load your dashboard. Please try again."),
+        findsOneWidget,
+      );
+      // ...and the raw exception dump is NOT leaked into the widget tree
+      // (it is debugPrint-ed to the logs instead). This assertion was the
+      // defect: it used to require `database unavailable` on screen.
+      expect(find.textContaining('database unavailable'), findsNothing);
 
       await tester.tap(find.byKey(const Key('appErrorRetryButton')));
       await tester.pumpAndSettle();

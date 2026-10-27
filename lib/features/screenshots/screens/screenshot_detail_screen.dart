@@ -67,11 +67,14 @@ class _ScreenshotDetailScreenState
       await ref.read(deleteScreenshotProvider(_id).future);
       if (!mounted) return;
       context.pop();
-    } catch (error) {
+    } catch (error, stack) {
+      // Log the technical detail (repo-wide debugPrint pattern); show the user
+      // a short, actionable message instead of an exception dump.
+      debugPrint('[ScreenshotDetail] Delete failed: $error\n$stack');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete this screenshot.')),
+      );
     }
   }
 
@@ -104,11 +107,16 @@ class _ScreenshotDetailScreenState
       ),
       body: screenshotAsync.when(
         loading: () => const LoadingWidget(message: 'Loading details...'),
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load details',
-          message: error.toString(),
-          onRetry: () => ref.invalidate(screenshotDetailProvider(_id)),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint('[ScreenshotDetail] Could not load details: $error\n$stack');
+          return AppErrorWidget(
+            title: 'Could not load details',
+            message: "We couldn't load these details. Please try again.",
+            onRetry: () => ref.invalidate(screenshotDetailProvider(_id)),
+          );
+        },
         data: (screenshot) {
           if (screenshot == null) {
             return EmptyStateWidget(

@@ -109,7 +109,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('isar closed'), findsOneWidget);
+      expect(
+        find.text("We couldn't load your categories. Please try again."),
+        findsOneWidget,
+      );
+      // Was a defect: this asserted the raw 'isar closed' dump on screen.
+      expect(find.textContaining('isar closed'), findsNothing);
 
       await tester.tap(find.byKey(const Key('appErrorRetryButton')));
       await tester.pumpAndSettle();
@@ -310,7 +315,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppErrorWidget), findsOneWidget);
-      expect(find.textContaining('disk full'), findsOneWidget);
+      expect(
+        find.text(
+          "We couldn't load the screenshots in this category. "
+          'Please try again.',
+        ),
+        findsOneWidget,
+      );
+      // Was a defect: this asserted the raw 'disk full' dump on screen.
+      expect(find.textContaining('disk full'), findsNothing);
 
       await tester.tap(find.byKey(const Key('appErrorRetryButton')));
       await tester.pumpAndSettle();

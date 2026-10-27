@@ -28,11 +28,16 @@ class HomeDashboardScreen extends ConsumerWidget {
           message: 'Loading your dashboard...',
           icon: Icons.dashboard_rounded,
         ),
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load dashboard',
-          message: error.toString(),
-          onRetry: () => ref.invalidate(homeStatsProvider),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint('[HomeDashboard] Could not load dashboard: $error\n$stack');
+          return AppErrorWidget(
+            title: 'Could not load dashboard',
+            message: "We couldn't load your dashboard. Please try again.",
+            onRetry: () => ref.invalidate(homeStatsProvider),
+          );
+        },
         data: (stats) {
           if (stats.screenshotCount == 0 && !isScanning) {
             return _EmptyHome(
