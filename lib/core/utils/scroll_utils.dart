@@ -16,11 +16,18 @@ class ScrollUtils {
     Duration duration = const Duration(milliseconds: 300),
   }) async {
     if (!controller.hasClients) return;
-    await controller.animateTo(
-      controller.position.maxScrollExtent,
-      duration: duration,
-      curve: Curves.easeOut,
-    );
+    // Iterate all attached positions: a single controller can drive more
+    // than one scroll view, and `controller.position` throws in that case.
+    // Each view animates to its own maximum extent.
+    await Future.wait<void>(<Future<void>>[
+      for (final ScrollPosition position
+          in List<ScrollPosition>.of(controller.positions))
+        position.animateTo(
+          position.maxScrollExtent,
+          duration: duration,
+          curve: Curves.easeOut,
+        ),
+    ]);
   }
 
   /// Removes the glowing scroll behavior on Android when at the edge.
