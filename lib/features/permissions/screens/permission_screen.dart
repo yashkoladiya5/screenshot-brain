@@ -199,6 +199,11 @@ class _PermissionScreenState extends State<PermissionScreen>
   /// Primary action label implied by the current state machine.
   String get _primaryLabel {
     switch (_status) {
+      case GalleryPermissionStatus.granted:
+        // Access already exists: the only sane action is to continue.
+        // Falling through to 'Grant Access' here is what would re-fire the
+        // request seam while already granted (double prompt).
+        return 'Continue';
       case GalleryPermissionStatus.limited:
         return 'Continue with Limited Access';
       case GalleryPermissionStatus.permanentlyDenied:
@@ -212,6 +217,11 @@ class _PermissionScreenState extends State<PermissionScreen>
 
   Future<void> _onPrimaryPressed() {
     switch (_status) {
+      case GalleryPermissionStatus.granted:
+        // Already readable: re-navigate instead of re-running the request
+        // seam — the screen must never prompt again in this state.
+        _navigateOnGranted();
+        return Future.value();
       case GalleryPermissionStatus.limited:
         _navigateOnGranted();
         return Future.value();

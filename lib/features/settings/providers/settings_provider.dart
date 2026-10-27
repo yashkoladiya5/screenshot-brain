@@ -116,13 +116,38 @@ final resolvedBrightnessProvider = Provider<Brightness>((ref) {
 class SettingsNotifier extends StateNotifier<AppSettings> {
   SettingsNotifier({SettingsPersistence? persistence})
     : _persistence = persistence,
-      super(const AppSettings());
+      super(const AppSettings()) {
+    // A notifier built over a non-empty store IS an app restart: pull the
+    // stored snapshot back in right away, otherwise the const defaults would
+    // silently win and every persisted preference is lost on launch.
+    unawaited(load());
+  }
 
   final SettingsPersistence? _persistence;
 
+  /// True once a mutation went through [_commit] in this session: a restore
+  /// resolving later must never clobber what the user just changed.
+  bool _hasUserMutation = false;
+
+  /// True once the initial restore has been resolved (applied or skipped).
+  bool _restoreApplied = false;
+
   /// Restores persisted settings (if any) without notifying when unchanged.
+  /// Runs automatically at construction and is safe to call again: it never
+  /// overwrites a real user change or a snapshot already applied.
   Future<void> load() async {
-    final stored = await _persistence?.load();
+    final persistence = _persistence;
+    if (persistence == null || _restoreApplied || _hasUserMutation) return;
+    AppSettings? stored;
+    try {
+      stored = await persistence.load();
+    } catch (_) {
+      // A store that cannot be read behaves like an empty one: keep defaults.
+      _restoreApplied = true;
+      return;
+    }
+    if (_restoreApplied || _hasUserMutation || !mounted) return;
+    _restoreApplied = true;
     if (stored != null && stored != state) {
       state = stored;
     }
@@ -145,14 +170,20 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   /// listeners fire only on a real change.
   void _commit(AppSettings next) {
     if (next == state) return;
+    _hasUserMutation = true;
     state = next;
     final persistence = _persistence;
-    if (persistence != null) {
+    if (persistence == null) return;
+    try {
       unawaited(
         persistence.save(next).catchError((Object _) {
           // Persistence must never break the UI state update.
         }),
       );
+    } catch (_) {
+      // A store that throws SYNCHRONOUSLY must also not break the UI: this
+      // runs straight inside a switch/radio tap handler, and the seam
+      // contract promises failures are logged and ignored here.
     }
   }
 }
