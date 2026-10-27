@@ -18,6 +18,10 @@ class AppColors {
   static const onPrimaryContainer = Color(0xFF97F0FF);
 
   static const secondary = Color(0xFFC084FC);
+
+  /// Dark ink for text/icons painted on [secondary]. Reusing [textPrimary]
+  /// here gave 2.77:1 on the light violet, which is unreadable.
+  static const onSecondary = Color(0xFF0F172A);
   static const secondaryDim = Color(0xFF7C3AED);
   static const secondaryContainer = Color(0xFF3B0764);
   static const onSecondaryContainer = Color(0xFFE9D5FF);
@@ -29,7 +33,11 @@ class AppColors {
   static const onWarning = Color(0xFF0F172A);
   static const warningContainer = Color(0xFF451A03);
   static const error = Color(0xFFEF4444);
-  static const onError = Color(0xFFFFFFFF);
+
+  /// Dark ink for the bright dark-mode error: white on [error] measures
+  /// 4.01:1 and misses AA, while 0F172A on it measures 4.77:1. Light mode
+  /// uses [lightOnError] (white on the darker red, 5.12:1).
+  static const onError = Color(0xFF0F172A);
   static const errorContainer = Color(0xFF450A0A);
 
   /// Readable foreground on [errorContainer] (was previously the container
@@ -41,7 +49,11 @@ class AppColors {
 
   static const textPrimary = Color(0xFFF8FAFC);
   static const textSecondary = Color(0xFF94A3B8);
-  static const textTertiary = Color(0xFF64748B);
+
+  /// Tertiary text (input hints, `labelSmall`, unselected tab/nav labels) has
+  /// to clear WCAG AA on the lightest surface it sits on, which is [elevated]
+  /// (the input fill). The previous 64748B managed only 2.59:1 there.
+  static const textTertiary = Color(0xFF8A9BB0);
   static const textInverse = Color(0xFF0F172A);
 
   static const shimmerBase = Color(0xFF1E293B);
@@ -57,16 +69,31 @@ class AppColors {
 
   static const lightTextPrimary = Color(0xFF0F172A);
   static const lightTextSecondary = Color(0xFF475569);
-  static const lightTextTertiary = Color(0xFF94A3B8);
 
-  static const lightPrimary = Color(0xFF0097A7);
+  /// Mirror of the dark note above: 94A3B8 on a white card is only 2.86:1 and
+  /// 2.58:1 on the [lightElevated] input fill, so hints and `labelSmall`
+  /// captions failed AA in light mode. 64748B is 5.61:1 / 5.06:1 there.
+  static const lightTextTertiary = Color(0xFF64748B);
+
+  /// Cyan brand darkened from 0097A7 (3.75:1 against [lightBackground],
+  /// 3.95:1 on [lightSurface]): lightPrimary doubles as the ElevatedButton /
+  /// TextButton / selected-tab text colour, where AA needs 4.5:1.
+  static const lightPrimary = Color(0xFF007E93);
   static const lightPrimaryContainer = Color(0xFFB3F0FF);
   static const lightSecondary = Color(0xFF7C3AED);
+
+  /// White ink for the deep violet light-mode secondary; the theme previously
+  /// reused lightTextPrimary here, which is only 3.01:1 on 7C3AED.
+  static const lightOnSecondary = Color(0xFFFFFFFF);
   static const lightSecondaryContainer = Color(0xFFEDE9FE);
 
   static const lightSuccess = Color(0xFF059669);
   static const lightWarning = Color(0xFFD97706);
   static const lightError = Color(0xFFDC2626);
+
+  /// White on the darker light-mode red is 5.12:1, so light mode keeps the
+  /// light ink that dark mode had to give up.
+  static const lightOnError = Color(0xFFFFFFFF);
 
   // Light-mode containers and their readable foregrounds.
   static const lightOnPrimaryContainer = Color(0xFF003544);
@@ -75,7 +102,9 @@ class AppColors {
   static const lightWarningContainer = Color(0xFFFEF3C7);
   static const lightErrorContainer = Color(0xFFFEE2E2);
   static const lightOnErrorContainer = Color(0xFF7F1D1D);
-  static const lightTertiary = Color(0xFF0284C7);
+
+  /// 0284C7 left lightOnTertiary at 4.42:1; 0274AE is 5.61:1.
+  static const lightTertiary = Color(0xFF0274AE);
   static const lightOnTertiary = Color(0xFFF8FAFC);
   static const lightPrimaryDim = Color(0xFF00BCD4);
   static const lightSecondaryDim = Color(0xFF7C3AED);

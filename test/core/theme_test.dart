@@ -152,8 +152,10 @@ void main() {
         );
       });
 
-      test('$name: button + appbar foregrounds meet large-text 3:1', () {
-        checkPair(theme, 'onPrimary/primary', s.onPrimary, s.primary, min: 3.0);
+      test('$name: button + appbar foregrounds meet AA 4.5:1', () {
+        // Button labels are 15px w600, i.e. normal text: the large-text 3:1
+        // exemption does not apply.
+        checkPair(theme, 'onPrimary/primary', s.onPrimary, s.primary);
       });
 
       test('$name: error foreground on error container is visible', () {
@@ -217,6 +219,171 @@ void main() {
       expect(SBSpacing.colossal, greaterThan(SBSpacing.massive));
       expect(SBTypography.statValue, SBTypography.displayMedium);
       expect(SBAnimations.deliberate, greaterThan(SBAnimations.slow));
+    });
+  });
+
+  group(
+    'Text tokens are legible on every surface the theme paints them on',
+    () {
+      void check(ThemeData theme, String label, Color fg, Color bg) {
+        final ratio = contrastRatio(fg, bg);
+        expect(
+          ratio >= 4.5,
+          isTrue,
+          reason:
+              '${theme.brightness == Brightness.dark ? 'dark' : 'light'} '
+              '$label contrast ${ratio.toStringAsFixed(2)} < 4.5',
+        );
+      }
+
+      for (final theme in [light, dark]) {
+        final name = theme.brightness == Brightness.dark ? 'dark' : 'light';
+        final ext = theme.extension<ScreenshotBrainThemeExtension>()!;
+
+        test(
+          '$name: textTertiary clears AA on background/surface/card/elevated',
+          () {
+            // labelSmall, input hints and unselected tab/nav labels are all
+            // rendered with textTertiary on these surfaces.
+            check(
+              theme,
+              'textTertiary/background',
+              ext.textTertiary,
+              ext.background,
+            );
+            check(theme, 'textTertiary/surface', ext.textTertiary, ext.surface);
+            check(theme, 'textTertiary/card', ext.textTertiary, ext.card);
+            check(
+              theme,
+              'textTertiary/elevated',
+              ext.textTertiary,
+              ext.elevated,
+            );
+          },
+        );
+
+        test(
+          '$name: textSecondary still clears AA and stays above tertiary',
+          () {
+            check(
+              theme,
+              'textSecondary/elevated',
+              ext.textSecondary,
+              ext.elevated,
+            );
+            check(theme, 'textSecondary/card', ext.textSecondary, ext.card);
+            final secondary = contrastRatio(ext.textSecondary, ext.surface);
+            final tertiary = contrastRatio(ext.textTertiary, ext.surface);
+            expect(
+              secondary > tertiary,
+              isTrue,
+              reason:
+                  'tertiary ($tertiary) must not out-contrast secondary '
+                  '($secondary)',
+            );
+          },
+        );
+
+        test('$name: input hint colour is legible on the input fill', () {
+          check(
+            theme,
+            'hintStyle/fillColor',
+            theme.inputDecorationTheme.hintStyle!.color!,
+            theme.inputDecorationTheme.fillColor!,
+          );
+        });
+
+        test('$name: unselected tab and navigation labels are legible', () {
+          final surface = ext.surface;
+          check(
+            theme,
+            'tabBar.unselectedLabelColor/surface',
+            theme.tabBarTheme.unselectedLabelColor!,
+            surface,
+          );
+          check(
+            theme,
+            'bottomNav.unselectedItemColor/surface',
+            theme.bottomNavigationBarTheme.unselectedItemColor!,
+            surface,
+          );
+        });
+
+        test(
+          '$name: accent used as text (text buttons, selected tabs/labels)',
+          () {
+            final s = theme.colorScheme;
+            check(theme, 'primary/background', s.primary, ext.background);
+            check(theme, 'primary/card', s.primary, ext.card);
+            check(theme, 'onPrimary/primary', s.onPrimary, s.primary);
+            check(theme, 'onSecondary/secondary', s.onSecondary, s.secondary);
+            check(theme, 'onTertiary/tertiary', s.onTertiary, s.tertiary);
+            check(theme, 'onError/error', s.onError, s.error);
+          },
+        );
+      }
+    },
+  );
+
+  group('Per-mode on* foregrounds come from AppColors, not hardcoded ink', () {
+    test(
+      'dark onError is a dark ink on the bright dark error, light stays white',
+      () {
+        // Regression: _buildTheme hardwired `onError: Colors.white` for both
+        // modes. White on the dark-mode error (#EF4444) is 4.01:1, so error
+        // foregrounds failed AA only in dark mode.
+        expect(dark.colorScheme.onError, AppColors.onError);
+        expect(light.colorScheme.onError, AppColors.lightOnError);
+        expect(
+          dark.colorScheme.onError,
+          isNot(Colors.white),
+          reason: 'dark palette uses 0F172A ink on saturated fills',
+        );
+        expect(
+          contrastRatio(dark.colorScheme.onError, dark.colorScheme.error) >=
+              4.5,
+          isTrue,
+        );
+        expect(
+          contrastRatio(light.colorScheme.onError, light.colorScheme.error) >=
+              4.5,
+          isTrue,
+        );
+      },
+    );
+
+    test('onSecondary is the palette foreground, not textPrimary', () {
+      // Regression: onSecondary was filled with textPrimary, which is
+      // 2.77:1 on the dark secondary (#C084FC) and 3.01:1 on the light one
+      // (#7C3AED) - illegible wherever M3 paints onSecondary on secondary.
+      expect(dark.colorScheme.onSecondary, AppColors.onSecondary);
+      expect(light.colorScheme.onSecondary, AppColors.lightOnSecondary);
+      expect(dark.colorScheme.onSecondary, isNot(dark.colorScheme.onSurface));
+      expect(light.colorScheme.onSecondary, isNot(light.colorScheme.onSurface));
+    });
+
+    test('light primary and tertiary are dark enough for AA in both roles', () {
+      // lightPrimary doubled as button fill (with lightBackground label text)
+      // and as text/icon colour on white surfaces; at #0097A7 both were
+      // 3.75-3.95:1. lightTertiary #0284C7 gave 4.42:1 for onTertiary.
+      expect(
+        contrastRatio(light.colorScheme.onPrimary, light.colorScheme.primary) >=
+            4.5,
+        isTrue,
+      );
+      expect(
+        contrastRatio(light.colorScheme.primary, light.colorScheme.surface) >=
+            4.5,
+        isTrue,
+      );
+      expect(
+        contrastRatio(
+              light.colorScheme.onTertiary,
+              light.colorScheme.tertiary,
+            ) >=
+            4.5,
+        isTrue,
+      );
     });
   });
 }
