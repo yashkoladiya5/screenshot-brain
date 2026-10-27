@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screenshot_brain/core/design/tokens.dart';
 import 'package:screenshot_brain/core/widgets/empty_state_widget.dart';
 import 'package:screenshot_brain/core/widgets/error_widget.dart';
 import 'package:screenshot_brain/core/widgets/loading_widget.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+
+/// A realistic worst case: screens pass `error.toString()` straight through,
+/// so the message can be a very long, whitespace-free technical dump.
+const _longMessage =
+    'Exception: HandledError(sqlite3_exception: unable to open database file '
+    '(SQLITE_CANTOPEN) while running SELECT screenshots.id, screenshots.source '
+    'FROM screenshots ORDER BY screenshots.captured_at DESC LIMIT 500 offset 0 '
+    'in /data/user/0/com.example/database.sqlite) at ocr_service.dart:712';
+
+/// Pumps [child] on the smallest surface the app realistically renders on
+/// (a 320x480 logical viewport) and returns the taken framework exception,
+/// if any (a RenderFlex overflow reports itself here).
+Future<Object?> _pumpOnSmallSurface(WidgetTester tester, Widget child) async {
+  await tester.binding.setSurfaceSize(const Size(320, 480));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() => tester.view.resetDevicePixelRatio());
+
+  await tester.pumpWidget(_wrap(child));
+  await tester.pump();
+  return tester.takeException();
+}
 
 void main() {
   group('EmptyStateWidget', () {
@@ -214,6 +237,163 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
+    });
+  });
+
+  group('small-screen (320x480) robustness', () {
+    testWidgets('long error message with title and retry does not overflow', (
+      tester,
+    ) async {
+      final exception = await _pumpOnSmallSurface(
+        tester,
+        AppErrorWidget(
+          message: _longMessage,
+          title: 'Could not load screenshots',
+          onRetry: () {},
+        ),
+      );
+
+      expect(exception, isNull, reason: 'RenderFlex overflow on 320x480');
+      expect(find.text(_longMessage), findsOneWidget);
+    });
+
+    testWidgets('long empty state copy with action does not overflow', (
+      tester,
+    ) async {
+      final exception = await _pumpOnSmallSurface(
+        tester,
+        EmptyStateWidget(
+          icon: Icons.photo_library_outlined,
+          title: _longMessage,
+          subtitle: _longMessage,
+          actionLabel: 'Start a manual scan instead',
+          onAction: () {},
+        ),
+      );
+
+      expect(exception, isNull, reason: 'RenderFlex overflow on 320x480');
+    });
+
+    testWidgets('long loading message does not overflow', (tester) async {
+      final exception = await _pumpOnSmallSurface(
+        tester,
+        const LoadingWidget(
+          message: _longMessage,
+          icon: Icons.dashboard_rounded,
+        ),
+      );
+
+      expect(exception, isNull, reason: 'RenderFlex overflow on 320x480');
+    });
+
+    testWidgets('accessibility text scaling does not clip the error state', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(3.0)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: AppErrorWidget(
+              message: 'Could not read the screenshot database',
+              title: 'Something went wrong',
+              onRetry: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byKey(const Key('appErrorRetryButton')));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'error retry remains reachable after scrolling on small surface',
+      (tester) async {
+        await _pumpOnSmallSurface(
+          tester,
+          AppErrorWidget(message: _longMessage, onRetry: () {}),
+        );
+
+        final retry = find.byKey(const Key('appErrorRetryButton'));
+        await tester.ensureVisible(retry);
+        await tester.pumpAndSettle();
+
+        expect(tester.getRect(retry).bottom, lessThanOrEqualTo(480));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  group('touch targets and consistency', () {
+    testWidgets('error retry button meets the 44dp minimum touch target', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(AppErrorWidget(message: 'Boom', onRetry: () {})),
+      );
+
+      final rect = tester.getRect(find.byKey(const Key('appErrorRetryButton')));
+      expect(rect.height, greaterThanOrEqualTo(SBSizes.minTouchTarget));
+    });
+
+    testWidgets('empty state action meets the 44dp minimum touch target', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          EmptyStateWidget(
+            icon: Icons.inbox_outlined,
+            title: 'Empty inbox',
+            actionLabel: 'Scan now',
+            onAction: () {},
+          ),
+        ),
+      );
+
+      final rect = tester.getRect(find.byType(FilledButton));
+      expect(rect.height, greaterThanOrEqualTo(SBSizes.minTouchTarget));
+    });
+
+    testWidgets('the family uses one action gap above the button slot', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(AppErrorWidget(message: 'Boom', onRetry: () {})),
+      );
+      final errorGap =
+          tester.getRect(find.byKey(const Key('appErrorRetryButton'))).top -
+          tester.getRect(find.text('Boom')).bottom;
+
+      await tester.pumpWidget(
+        _wrap(
+          EmptyStateWidget(
+            icon: Icons.inbox_outlined,
+            title: 'Empty inbox',
+            subtitle: 'Nothing here',
+            actionLabel: 'Scan now',
+            onAction: () {},
+          ),
+        ),
+      );
+      final emptyGap =
+          tester.getRect(find.byType(FilledButton)).top -
+          tester.getRect(find.text('Nothing here')).bottom;
+
+      expect(
+        errorGap,
+        emptyGap,
+        reason: 'screens should not have to special-case spacing',
+      );
     });
   });
 }

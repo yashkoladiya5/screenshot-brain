@@ -9,6 +9,10 @@ import '../utils/context_extensions.dart';
 /// adds an optional [title], custom [icon], [iconSize] and [retryLabel],
 /// plus a screen-reader [semanticsLabel]. When [onRetry] is provided a
 /// filled "Try Again" (or [retryLabel]) button is rendered and invokes it.
+///
+/// The body is scrollable so that a long `error.toString()` dump on a small
+/// surface (320x480) never clips the content and the retry action always
+/// stays reachable.
 class AppErrorWidget extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
@@ -48,7 +52,7 @@ class AppErrorWidget extends StatelessWidget {
       container: true,
       label: semanticsLabel ?? message,
       child: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: SBSpacing.xxxl,
             vertical: SBSpacing.xxl,
@@ -83,7 +87,7 @@ class AppErrorWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               if (onRetry != null) ...[
-                const SizedBox(height: SBSpacing.lg),
+                const SizedBox(height: SBSpacing.xxl),
                 FilledButton.icon(
                   key: const Key('appErrorRetryButton'),
                   onPressed: onRetry,

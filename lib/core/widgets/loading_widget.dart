@@ -9,6 +9,11 @@ import '../utils/context_extensions.dart';
 /// [icon] (rendered above the indicator as a contextual hint), indicator
 /// sizing via [indicatorSize] / [strokeWidth], and a screen-reader
 /// [semanticsLabel] (defaults to `Loading`).
+///
+/// The body is scrollable so a long `message` on a small surface (320x480)
+/// never clips. The spinner animates through the indicator's own controller,
+/// which is disposed with the widget and pauses when it is offstage, so there
+/// is no leaked ticker to manage here.
 class LoadingWidget extends StatelessWidget {
   final String? message;
 
@@ -43,7 +48,7 @@ class LoadingWidget extends StatelessWidget {
       label:
           semanticsLabel ?? (message == null ? 'Loading' : 'Loading. $message'),
       child: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: SBSpacing.xxxl,
             vertical: SBSpacing.xxl,

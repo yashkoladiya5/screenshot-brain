@@ -8,6 +8,10 @@ import '../utils/context_extensions.dart';
 /// Backward compatible with the previous `(icon, title, subtitle,
 /// actionLabel, onAction)` API; adds a fully custom [action] widget slot,
 /// [iconSize] tuning and a screen-reader [semanticsLabel].
+///
+/// The body is scrollable so long copy on a small surface (320x480) never
+/// clips, and the action stays reachable. The action gap matches the shared
+/// error widget's retry gap so screens do not have to special-case spacing.
 class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -52,7 +56,7 @@ class EmptyStateWidget extends StatelessWidget {
       container: true,
       label: semanticsLabel ?? (subtitle == null ? title : '$title. $subtitle'),
       child: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: SBSpacing.xxxl,
             vertical: SBSpacing.xxl,
