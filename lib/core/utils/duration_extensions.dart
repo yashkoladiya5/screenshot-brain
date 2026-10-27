@@ -3,17 +3,21 @@ typedef HoursMinutesSeconds = ({int hours, int minutes, int seconds});
 
 extension DurationExtensions on Duration {
   /// Formats the duration into a readable `mm:ss` string (e.g., 04:05).
+  /// Values are taken from the absolute duration: Dart's `remainder()`
+  /// keeps the dividend's sign, so an un-`abs()`ed negative duration used
+  /// to render as "-4:-5" with stray minus signs.
   String toMmSs() {
-    final minutes = inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = inSeconds.remainder(60).toString().padLeft(2, '0');
+    final minutes = inMinutes.abs().remainder(60).toString().padLeft(2, '0');
+    final seconds = inSeconds.abs().remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 
-  /// Formats the duration into a readable `hh:mm:ss` string.
+  /// Formats the duration into a readable `hh:mm:ss` string. Uses the
+  /// absolute value like [toMmSs] (e.g. -1h -2m -3s renders `01:02:03`).
   String toHhMmSs() {
-    final hours = inHours.toString().padLeft(2, '0');
-    final minutes = inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = inSeconds.remainder(60).toString().padLeft(2, '0');
+    final hours = inHours.abs().toString().padLeft(2, '0');
+    final minutes = inMinutes.abs().remainder(60).toString().padLeft(2, '0');
+    final seconds = inSeconds.abs().remainder(60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
   }
 

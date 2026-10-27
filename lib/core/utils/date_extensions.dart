@@ -63,9 +63,14 @@ extension DateTimeExtensions on DateTime {
   /// Whole calendar days between this date and [reference] (negative when
   /// this date is in the past). Midnight-normalized, so wall-clock time and
   /// DST transitions never shift the result.
+  /// DST-safe: the midnight difference is taken on UTC-anchored values so
+  /// every day is exactly 24 hours. Subtracting local midnights instead
+  /// yields 23-/25-hour spans on DST days, and `Duration.inDays` truncates
+  /// toward zero, so "23 hours" collapsed to 0 and yesterday was labeled
+  /// "Today" (and a tomorrow became a "Today") in DST-observing zones.
   int dayOffsetFrom(DateTime reference) {
-    final self = DateTime(year, month, day);
-    final base = DateTime(reference.year, reference.month, reference.day);
+    final self = DateTime.utc(year, month, day);
+    final base = DateTime.utc(reference.year, reference.month, reference.day);
     return self.difference(base).inDays;
   }
 

@@ -40,6 +40,54 @@ void main() {
       expect(now.isYesterday, isFalse);
       expect(now.isTomorrow, isFalse);
     });
+
+    test('midnight-boundary labels never leak "Today" across a day', () {
+      // Screenshot taken 2025-03-09 23:59, viewed 2025-03-10 00:01.
+      // Must be "Yesterday", never "Today".
+      final before = DateTime.utc(2025, 3, 9, 23, 59);
+      final after = DateTime.utc(2025, 3, 10, 0, 1);
+      expect(before.toRelativeDateString(reference: after), 'Yesterday');
+      expect(
+        before.toRelativeString(reference: after),
+        'Yesterday at 11:59 PM',
+      );
+      expect(before.isTodayOn(after), isFalse);
+    });
+  });
+
+  group('day offsets across DST-shortened/lengthened days', () {
+    // Regression: dayOffsetFrom subtracted local wall midnights with
+    // `difference(...).inDays`, which truncates toward zero. In
+    // America/New_York, 2025-03-09 00:00 EST -> 2025-03-10 00:00 EDT spans
+    // only 23 real hours, so the offset collapsed to 0: yesterday was
+    // labeled "Today" and tomorrow "Today" too, and week/month timeline
+    // filters built on these predicates binned the wrong days.
+    // Run with TZ=America/New_York to see the pre-fix failure.
+    final march9 = DateTime.utc(2025, 3, 9);
+    final march10 = DateTime.utc(2025, 3, 10);
+
+    test('calendar offsets stay exact on a 23-hour day', () {
+      expect(march10.dayOffsetFrom(march9), 1);
+      expect(march9.dayOffsetFrom(march10), -1);
+      expect(march10.isTomorrowOn(march9), isTrue);
+      expect(march9.isYesterdayOn(march10), isTrue);
+      expect(march10.isTodayOn(march9), isFalse);
+      expect(march9.isTodayOn(march10), isFalse);
+    });
+
+    test('relative labels survive the spring-forward week', () {
+      expect(march10.toRelativeDateString(reference: march9), 'Tomorrow');
+      expect(march9.toRelativeDateString(reference: march10), 'Yesterday');
+    });
+
+    test('25-hour fall-back day keeps offsets exact too', () {
+      // 2025-11-01 -> 2025-11-02 in NY is fine; 2025-11-02 (the 25-hour day)
+      // relative to 2025-11-03 must still be exactly -1.
+      final nov2 = DateTime.utc(2025, 11, 2);
+      final nov3 = DateTime.utc(2025, 11, 3);
+      expect(nov2.dayOffsetFrom(nov3), -1);
+      expect(nov3.dayOffsetFrom(nov2), 1);
+    });
   });
 
   group('DateTimeExtensions formatting', () {

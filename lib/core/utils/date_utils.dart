@@ -13,19 +13,21 @@ class DateUtils {
     final Duration diff = DateTime.now().difference(date);
 
     if (diff.inDays > 365) {
-      return '${(diff.inDays / 365).floor()} years ago';
+      final years = (diff.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
     }
     if (diff.inDays > 30) {
-      return '${(diff.inDays / 30).floor()} months ago';
+      final months = (diff.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
     }
     if (diff.inDays > 0) {
-      return '${diff.inDays} days ago';
+      return diff.inDays == 1 ? '1 day ago' : '${diff.inDays} days ago';
     }
     if (diff.inHours > 0) {
-      return '${diff.inHours} hours ago';
+      return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
     }
     if (diff.inMinutes > 0) {
-      return '${diff.inMinutes} mins ago';
+      return diff.inMinutes == 1 ? '1 min ago' : '${diff.inMinutes} mins ago';
     }
     return 'Just now';
   }
@@ -45,18 +47,27 @@ class DateUtils {
   /// Start of the ISO week (Monday 00:00:00.000) containing [date].
   /// Locale-agnostic: Dart's `weekday` is 1=Monday..7=Sunday regardless of
   /// locale, so weeks always start on Monday.
+  /// DST-safe: the shift back to Monday is done with wall-clock day numbers
+  /// in the `DateTime` constructor, never with a 24-hour `Duration`. A
+  /// Duration-based subtract lands on 01:00 (or 23:00, or the wrong day)
+  /// when the span crosses a DST transition that happens at midnight,
+  /// which silently dropped 00:00-01:00 screenshots from "this week"
+  /// filters in zones like Asia/Beirut or America/Santiago.
   static DateTime startOfWeek(DateTime date) {
     return DateTime(
       date.year,
       date.month,
-      date.day,
-    ).subtract(Duration(days: date.weekday - DateTime.monday));
+      date.day - (date.weekday - DateTime.monday),
+    );
   }
 
   /// End of the ISO week (Sunday 23:59:59.999) containing [date].
+  /// Sunday is found by wall-clock day arithmetic (same DST rationale as
+  /// [startOfWeek]); the returned value is rebuilt from components so its
+  /// time of day is always exactly end-of-day.
   static DateTime endOfWeek(DateTime date) {
     final start = startOfWeek(date);
-    final sunday = start.add(const Duration(days: 6));
+    final sunday = DateTime(start.year, start.month, start.day + 6);
     return DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59, 999);
   }
 

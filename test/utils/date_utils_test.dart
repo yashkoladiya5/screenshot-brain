@@ -47,6 +47,51 @@ void main() {
     });
   });
 
+  group('startOfWeek / endOfWeek are DST wall-clock safe', () {
+    // Regression: both helpers used to add/subtract 24-hour `Duration`s from
+    // a local midnight. In zones whose DST transition lands at midnight
+    // (Asia/Beirut, America/Santiago, Asia/Tehran, Pacific/Apia, ...), the
+    // week anchor came back on the wrong day or at 01:00/23:00, so a
+    // "this week" filter silently dropped screenshots taken between 00:00
+    // and 01:00 on Monday (or bucketed the whole week one day late).
+    // Run with TZ=Asia/Beirut to see the pre-fix failure.
+    test('startOfWeek of a Sunday in a midnight-DST week is Monday 00:00', () {
+      final sun = DateTime(2025, 10, 26); // Sunday, Beirut week
+      final start = DateUtils.startOfWeek(sun);
+      expect(start.weekday, DateTime.monday);
+      expect(
+        [
+          start.year,
+          start.month,
+          start.day,
+          start.hour,
+          start.minute,
+          start.second,
+        ],
+        [2025, 10, 20, 0, 0, 0],
+      );
+    });
+
+    test('every day of that week anchors to the same Monday midnight', () {
+      for (int d = 20; d <= 26; d++) {
+        final start = DateUtils.startOfWeek(DateTime(2025, 10, d));
+        expect(start.day, 20, reason: 'day $d should bucket to Mon 20');
+        expect(start.hour, 0);
+        expect(start.minute, 0);
+      }
+    });
+
+    test('endOfWeek of a midnight-DST week is Sunday 23:59:59.999', () {
+      final end = DateUtils.endOfWeek(DateTime(2025, 10, 20));
+      expect(end.weekday, DateTime.sunday);
+      expect(
+        [end.year, end.month, end.day, end.hour, end.minute, end.second],
+        [2025, 10, 26, 23, 59, 59],
+      );
+      expect(end.millisecond, 999);
+    });
+  });
+
   group('monthKey / monthLabel', () {
     test('monthKey is zero-padded yyyy-MM', () {
       expect(DateUtils.monthKey(DateTime.utc(2025, 1)), '2025-01');
@@ -205,11 +250,35 @@ void main() {
       );
       expect(
         DateUtils.timeAgo(now.subtract(const Duration(days: 45))),
-        '1 months ago',
+        '1 month ago',
       );
       expect(
         DateUtils.timeAgo(now.subtract(const Duration(days: 400))),
-        '1 years ago',
+        '1 year ago',
+      );
+    });
+
+    test('singular units never say "1 days/months/years ago"', () {
+      final now = DateTime.now();
+      expect(
+        DateUtils.timeAgo(now.subtract(const Duration(days: 1, seconds: 1))),
+        '1 day ago',
+      );
+      expect(
+        DateUtils.timeAgo(now.subtract(const Duration(days: 31, seconds: 1))),
+        '1 month ago',
+      );
+      expect(
+        DateUtils.timeAgo(now.subtract(const Duration(days: 366, seconds: 1))),
+        '1 year ago',
+      );
+      expect(
+        DateUtils.timeAgo(now.subtract(const Duration(hours: 1, seconds: 1))),
+        '1 hour ago',
+      );
+      expect(
+        DateUtils.timeAgo(now.subtract(const Duration(minutes: 1, seconds: 1))),
+        '1 min ago',
       );
     });
   });

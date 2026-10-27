@@ -127,12 +127,27 @@ void main() {
       expect(const Duration(minutes: 65).toMmSs(), '05:00'); // remainder style
     });
 
+    test('toMmSs never emits stray minus signs for negative durations', () {
+      // Regression: Dart's remainder() keeps the dividend's sign, so a
+      // negative duration rendered as "-4:-5".
+      expect(const Duration(minutes: -4, seconds: -5).toMmSs(), '04:05');
+      expect(const Duration(seconds: -59).toMmSs(), '00:59');
+      expect(const Duration(minutes: -65).toMmSs(), '05:00');
+    });
+
     test('toHhMmSs', () {
       expect(
         const Duration(hours: 1, minutes: 2, seconds: 3).toHhMmSs(),
         '01:02:03',
       );
       expect(const Duration(hours: 25).toHhMmSs(), '25:00:00');
+    });
+
+    test('toHhMmSs never emits stray minus signs for negative durations', () {
+      expect(
+        const Duration(hours: -1, minutes: -2, seconds: -3).toHhMmSs(),
+        '01:02:03',
+      );
     });
   });
 }
