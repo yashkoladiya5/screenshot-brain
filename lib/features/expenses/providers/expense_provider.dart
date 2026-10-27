@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/num_extensions.dart';
 import '../models/expense_item.dart';
 import '../repositories/expense_repository.dart';
 
@@ -38,26 +39,46 @@ class ExpenseSnapshot {
     final reference = now ?? DateTime.now();
     double total = 0;
     double monthlyTotal = 0;
-    final byCategory = <String, double>{};
+    final categoryTotals = <String, double>{};
     final items = <ExpenseItem>[];
     for (final expense in source) {
       items.add(expense);
       final amount = expense.amount ?? 0;
       total += amount;
       final category = expense.category ?? 'Other';
-      byCategory[category] = (byCategory[category] ?? 0) + amount;
+      categoryTotals[category] = (categoryTotals[category] ?? 0) + amount;
       final date = expense.expenseDate ?? expense.createdAt;
       if (date.year == reference.year && date.month == reference.month) {
         monthlyTotal += amount;
       }
     }
-    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // Newest-first with an id-descending tie-break, so the order (and which
+    // items survive the recent-N cutoff) never depends on repository row
+    // order: `List.sort` leaves equal elements in input order, which is
+    // whatever the database scan happened to return.
+    items.sort((a, b) {
+      final byNewest = b.createdAt.compareTo(a.createdAt);
+      return byNewest != 0 ? byNewest : b.id.compareTo(a.id);
+    });
+    // Sum-then-round: each aggregate is rounded once, after summing, so
+    // binary drift like 99.99*3 + 34.59 == 334.55999999999995 never leaks
+    // into displayed money. Canonical map order (total desc, name asc) keeps
+    // the breakdown deterministic for equal totals.
+    final byCategory = categoryTotals.entries
+        .map((entry) => MapEntry(entry.key, entry.value.roundTo(2)))
+        .toList()
+      ..sort((a, b) {
+        final byTotal = b.value.compareTo(a.value);
+        return byTotal != 0 ? byTotal : a.key.compareTo(b.key);
+      });
     return ExpenseSnapshot._(
       expenses: List<ExpenseItem>.unmodifiable(items),
-      total: total,
-      byCategory: Map<String, double>.unmodifiable(byCategory),
+      total: total.roundTo(2),
+      byCategory: Map<String, double>.unmodifiable({
+        for (final entry in byCategory) entry.key: entry.value,
+      }),
       recent: List<ExpenseItem>.unmodifiable(items.take(recentLimit)),
-      monthlyTotal: monthlyTotal,
+      monthlyTotal: monthlyTotal.roundTo(2),
     );
   }
 
