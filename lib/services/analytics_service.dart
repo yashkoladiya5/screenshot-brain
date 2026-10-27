@@ -119,21 +119,25 @@ class AnalyticsService {
   /// Effective amount of an expense (null treated as 0.0).
   static double expenseAmountOf(ExpenseModel expense) => expense.amount ?? 0.0;
 
-  /// Sum of expense amounts, optionally restricted to
-  /// `[start, end]` (inclusive) on the effective expense date.
+  /// Sum of expense amounts, optionally restricted to `[start, end]`
+  /// (inclusive, compared at day granularity on the effective expense
+  /// date). Rounded to two decimals once, after summing, so currency
+  /// totals never carry binary float artifacts.
   static double totalAmount(
     List<ExpenseModel> expenses, {
     DateTime? start,
     DateTime? end,
   }) {
+    final startDay = start == null ? null : dateOnly(start);
+    final endDay = end == null ? null : dateOnly(end);
     double total = 0;
     for (final e in expenses) {
-      final date = expenseDateOf(e);
-      if (start != null && date.isBefore(start)) continue;
-      if (end != null && date.isAfter(end)) continue;
+      final day = dateOnly(expenseDateOf(e));
+      if (startDay != null && day.isBefore(startDay)) continue;
+      if (endDay != null && day.isAfter(endDay)) continue;
       total += expenseAmountOf(e);
     }
-    return total;
+    return roundTo2(total);
   }
 
   /// Month-by-month expense series between [from] and [to] (inclusive,
@@ -195,14 +199,24 @@ class AnalyticsService {
 
     final result = <MonthlyBucket>[];
     for (final m in counts.keys.toList()..sort()) {
-      result.add(MonthlyBucket(month: m, count: counts[m]!, total: totals[m]!));
+      // Round once when emitting the bucket so summed float artifacts
+      // (e.g. 0.1 + 0.2) never reach chart tooltips or display totals.
+      result.add(
+        MonthlyBucket(
+          month: m,
+          count: counts[m]!,
+          total: roundTo2(totals[m]!),
+        ),
+      );
     }
     return result;
   }
 
   /// Per-category totals with percentage shares of the grand total,
-  /// sorted by total descending. Percentages are rounded to two decimals;
-  /// when the grand total is zero or negative every share is 0.0.
+  /// sorted by total descending. Shares are rounded to two decimals via a
+  /// largest-remainder apportionment (ties broken deterministically by
+  /// category name) so they always sum to exactly 100.00 when the grand
+  /// total is positive; when it is zero or negative every share is 0.0.
   static List<CategoryBucket> categoryShares(List<ExpenseModel> expenses) {
     final totals = <String, double>{};
     final counts = <String, int>{};
@@ -218,10 +232,43 @@ class AnalyticsService {
     }
     final hasPositiveBase = grandTotal > 0;
 
+    // Exact percentages can repeat (1/3 = 33.333…); rounding each bucket
+    // independently made the shares drift apart from 100 % (99.99 % or
+    // 100.01 % on the donut chart). Apportion whole hundredths of a
+    // percent with the largest-remainder method instead: floor every
+    // share, then hand the leftover hundredths to the largest remainders,
+    // breaking remainder ties by category name so the result never
+    // depends on input order.
+    final shareUnits = <String, int>{};
+    if (hasPositiveBase) {
+      final remainders = <String, double>{};
+      var allocated = 0;
+      for (final entry in totals.entries) {
+        final exact = entry.value / grandTotal * 10000;
+        final floored = exact.floor();
+        shareUnits[entry.key] = floored;
+        remainders[entry.key] = exact - floored;
+        allocated += floored;
+      }
+      var leftover = 10000 - allocated;
+      if (leftover > 0) {
+        final byRemainder = shareUnits.keys.toList()
+          ..sort((a, b) {
+            final byRem = remainders[b]!.compareTo(remainders[a]!);
+            return byRem != 0 ? byRem : a.compareTo(b);
+          });
+        for (final key in byRemainder) {
+          if (leftover <= 0) break;
+          shareUnits[key] = shareUnits[key]! + 1;
+          leftover--;
+        }
+      }
+    }
+
     final buckets =
         totals.entries.map((entry) {
           final percentage = hasPositiveBase
-              ? roundTo2(entry.value / grandTotal * 100)
+              ? shareUnits[entry.key]! / 100.0
               : 0.0;
           return CategoryBucket(
             category: entry.key,

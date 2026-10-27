@@ -110,6 +110,20 @@ void main() {
       expect(series.single.count, 1);
       expect(series.single.total, 5.0);
     });
+
+    test('month totals are free of binary float artifacts', () {
+      // 0.1 + 0.2 sums to 0.30000000000000004 in IEEE-754; the rounded
+      // total must be fixed once at aggregation time, not leaked to charts.
+      final series = AnalyticsService.monthlyExpenseSeries(
+        [
+          makeExpense(amount: 0.1, expenseDate: DateTime(2026, 1, 5)),
+          makeExpense(amount: 0.2, expenseDate: DateTime(2026, 1, 20)),
+        ],
+        from: DateTime(2026, 1, 1),
+        to: DateTime(2026, 1, 31),
+      );
+      expect(series.single.total, 0.3);
+    });
   });
 
   group('AnalyticsService.monthlyScreenshotSeries', () {
@@ -159,16 +173,49 @@ void main() {
       expect(shares[0].count, 1);
     });
 
-    test('rounds repeating percentages to two decimals', () {
+    test('independent rounding no longer drifts: shares sum to 100.00', () {
+      // Three equal categories used to render as 33.33% x3 = 99.99% on the
+      // donut chart. Shares must be apportioned so they add up to 100.00.
+      final shares = AnalyticsService.categoryShares([
+        makeExpense(amount: 10, category: 'A'),
+        makeExpense(amount: 10, category: 'B'),
+        makeExpense(amount: 10, category: 'C'),
+      ]);
+      final sum = shares.fold<double>(0, (s, b) => s + b.percentage);
+      expect(sum, closeTo(100.0, 1e-9));
+      // Deterministic allocation: equal remainders resolve by category name,
+      // so the extra hundredth always lands on the same bucket.
+      expect(shares.map((s) => s.percentage).toList(), [
+        33.34,
+        33.33,
+        33.33,
+      ]);
+    });
+
+    test('shares sum to 100.00 with a negative category present', () {
+      final shares = AnalyticsService.categoryShares([
+        makeExpense(amount: 10, category: 'Food'),
+        makeExpense(amount: 10, category: 'Transport'),
+        makeExpense(amount: -5, category: 'Refund'),
+      ]);
+      final sum = shares.fold<double>(0, (s, b) => s + b.percentage);
+      expect(sum, closeTo(100.0, 1e-9));
+    });
+
+    test('apportional shares are order-independent (deterministic)', () {
       final expenses = [
         makeExpense(amount: 10, category: 'A'),
         makeExpense(amount: 10, category: 'B'),
         makeExpense(amount: 10, category: 'C'),
       ];
-      final shares = AnalyticsService.categoryShares(expenses);
-      for (final s in shares) {
-        expect(s.percentage, 33.33);
-      }
+      final forward = AnalyticsService.categoryShares(expenses);
+      final backward = AnalyticsService.categoryShares(
+        expenses.reversed.toList(),
+      );
+      expect(
+        forward.map((s) => '${s.category}:${s.percentage}').toList(),
+        backward.map((s) => '${s.category}:${s.percentage}').toList(),
+      );
     });
 
     test('zero grand total yields zero percentages', () {
@@ -360,6 +407,44 @@ void main() {
 
     test('empty list sums to zero', () {
       expect(AnalyticsService.totalAmount(const []), 0.0);
+    });
+
+    test('day-granular range: end date includes the whole day', () {
+      // Documented as inclusive on the effective expense DATE, but the raw
+      // timestamp comparison silently skipped expenses after midnight of
+      // the end day.
+      final expenses = [
+        makeExpense(amount: 20, expenseDate: DateTime(2026, 2, 28, 13, 30)),
+      ];
+      expect(
+        AnalyticsService.totalAmount(
+          expenses,
+          start: DateTime(2026, 2, 1),
+          end: DateTime(2026, 2, 28),
+        ),
+        20.0,
+      );
+    });
+
+    test('day-granular range: start date includes the whole day', () {
+      final expenses = [
+        makeExpense(amount: 15, expenseDate: DateTime(2026, 2, 1, 1)),
+        makeExpense(amount: 5, expenseDate: DateTime(2026, 1, 31, 23)),
+      ];
+      expect(
+        AnalyticsService.totalAmount(expenses, start: DateTime(2026, 2, 1)),
+        15.0,
+      );
+    });
+
+    test('sum is free of binary float artifacts', () {
+      // 0.1 + 0.2 == 0.30000000000000004 in IEEE-754; the dashboard reads
+      // this value straight out of ExpenseRepository.getTotalForPeriod.
+      final total = AnalyticsService.totalAmount([
+        makeExpense(amount: 0.1),
+        makeExpense(amount: 0.2),
+      ]);
+      expect(total, 0.3);
     });
   });
 
