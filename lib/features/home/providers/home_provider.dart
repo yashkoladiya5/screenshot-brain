@@ -42,17 +42,32 @@ final unprocessedCountProvider = FutureProvider<int>((ref) async {
   return db.screenshotModels.filter().isProcessedEqualTo(false).count();
 });
 
-/// Builds the dashboard payload from shared derived sources:
-/// - expense figures come from [expenseSnapshotProvider], which itself is fed
-///   by the single shared `expenseListProvider` scan, so home never triggers
-///   duplicate concurrent expense table scans;
+/// Builds the dashboard payload from the shared data sources:
+/// - expenses come from the single `expenseListProvider` scan, aggregated
+///   in memory through the shared [ExpenseSnapshot] contract (sum-then-round
+///   totals, canonical breakdown/recent lists — no ad-hoc float math at this
+///   layer);
 /// - screenshot figures use cheap Isar counts instead of full-table loads.
+///
+/// Riverpod invalidation only flows downstream: the scan/delete flows and
+/// pull-to-refresh invalidate *this* provider alone, so a rebuild would
+/// happily re-emit the cached pre-scan values of [screenshotCountProvider],
+/// [unprocessedCountProvider] and the expense rows behind
+/// [expenseSnapshotProvider]. Every recompute therefore *refreshes* its
+/// sources — a forced re-read that, unlike `watch`, adds no upstream
+/// subscription, so refreshing a source can never re-dirty homeStatsProvider
+/// and spiral into recompute loops. Expenses are pulled exactly once per
+/// rebuild and aggregated through the shared [ExpenseSnapshot] contract in
+/// memory. Screenshots and expenses only change through paths that
+/// invalidate this provider (scan pass, screenshot delete, manual refresh),
+/// so dropping the watches costs no live updates.
 ///
 /// Any backend failure propagates as AsyncError (no debugPrint-and-swallow).
 final homeStatsProvider = FutureProvider<HomeStats>((ref) async {
-  final snapshot = await ref.watch(expenseSnapshotProvider.future);
-  final screenshotCount = await ref.watch(screenshotCountProvider.future);
-  final unprocessedCount = await ref.watch(unprocessedCountProvider.future);
+  final expenses = await ref.refresh(expenseListProvider.future);
+  final snapshot = ExpenseSnapshot.from(expenses);
+  final screenshotCount = await ref.refresh(screenshotCountProvider.future);
+  final unprocessedCount = await ref.refresh(unprocessedCountProvider.future);
 
   return HomeStats(
     screenshotCount: screenshotCount,

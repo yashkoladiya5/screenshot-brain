@@ -169,5 +169,66 @@ void main() {
         expect(find.text('BigBasket'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'top categories break total ties by name, not map insertion order',
+      (tester) async {
+        // Tied amounts inserted Food-first: a UI-level re-sort with only an
+        // amount comparator keeps the map's iteration order, so the rendered
+        // sequence silently changes with input order. Canonical order is
+        // amount desc, name asc — matching the expense snapshot's contract —
+        // so the same data must always render Bills above Food.
+        final stats = HomeStats(
+          screenshotCount: 10,
+          expenseCount: 2,
+          unprocessedCount: 0,
+          totalExpenses: 1000,
+          monthlyExpenses: 1000,
+          expensesByCategory: const {'Food': 500.0, 'Bills': 500.0},
+          recentExpenses: const [],
+        );
+        await tester.pumpWidget(
+          _wrap(HomeDashboardScreen(), [
+            homeStatsProvider.overrideWith((ref) async => stats),
+          ]),
+        );
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.getTopLeft(find.text('Bills')).dy,
+          lessThan(tester.getTopLeft(find.text('Food')).dy),
+          reason: 'equally-spending Bills must render above Food',
+        );
+      },
+    );
+
+    testWidgets('top categories stay amount-descending when totals differ', (
+      tester,
+    ) async {
+      final stats = HomeStats(
+        screenshotCount: 10,
+        expenseCount: 2,
+        unprocessedCount: 0,
+        totalExpenses: 4800,
+        monthlyExpenses: 4800,
+        expensesByCategory: const {'Food': 1200.0, 'Bills': 3600.0},
+        recentExpenses: const [],
+      );
+      await tester.pumpWidget(
+        _wrap(HomeDashboardScreen(), [
+          homeStatsProvider.overrideWith((ref) async => stats),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.text('Bills')).dy,
+        lessThan(tester.getTopLeft(find.text('Food')).dy),
+      );
+    });
   });
 }

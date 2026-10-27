@@ -270,8 +270,15 @@ class _CategoryBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Canonical order (total desc, name asc): the tie-break keeps the top-3
+    // deterministic for equally-spending categories instead of inheriting
+    // the map's iteration order — Dart's List.sort is not stable for larger
+    // lists. Mirrors the expense snapshot's documented contract.
     final sorted = byCategory.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+      ..sort((a, b) {
+        final byTotal = b.value.compareTo(a.value);
+        return byTotal != 0 ? byTotal : a.key.compareTo(b.key);
+      });
     final top = sorted.take(3).toList();
 
     return SbCard(
