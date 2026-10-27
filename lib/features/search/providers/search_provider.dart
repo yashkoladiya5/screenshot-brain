@@ -15,18 +15,30 @@ const Duration searchDebounceDuration = Duration(milliseconds: 300);
 String normalizeSearchQuery(String raw) =>
     raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
-/// Case-insensitive substring match against extracted text, file path and
-/// category. An empty [normalizedQuery] never matches (callers keep their
-/// last results instead of re-querying).
+/// Case-insensitive matching against extracted text, file path and category.
+/// The [normalizedQuery] must already be trimmed / whitespace-collapsed /
+/// lowercased. Matching uses AND semantics per whitespace-separated token:
+/// every token must appear somewhere in the screenshot (text, path or
+/// category), but not necessarily as one contiguous phrase — "train ticket"
+/// matches a booking screenshot whose file name says `train` and whose OCR
+/// text says `ticket`. An empty [normalizedQuery] never matches (callers
+/// keep their last results instead of re-querying).
 bool screenshotMatchesQuery(
   ScreenshotModel screenshot,
   String normalizedQuery,
 ) {
   if (normalizedQuery.isEmpty) return false;
-  return (screenshot.extractedText?.toLowerCase().contains(normalizedQuery) ??
-          false) ||
-      screenshot.filePath.toLowerCase().contains(normalizedQuery) ||
-      (screenshot.category?.toLowerCase().contains(normalizedQuery) ?? false);
+  final text = screenshot.extractedText?.toLowerCase() ?? '';
+  final path = screenshot.filePath.toLowerCase();
+  final category = screenshot.category?.toLowerCase() ?? '';
+  return normalizedQuery
+      .split(' ')
+      .every(
+        (token) =>
+            text.contains(token) ||
+            path.contains(token) ||
+            category.contains(token),
+      );
 }
 
 /// Pure in-memory filtering used by both the default DB-backed searcher and
@@ -58,8 +70,10 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 ///
 /// - Every keystroke restarts a single [Timer]; the backend is only queried
 ///   once the user stops typing for [searchDebounceDuration].
-/// - Queries are normalized (trim / collapse whitespace / lowercase).
+/// - Queries are normalized (trim / collapse whitespace / lowercase) and
+///   matched with per-word AND semantics (see [screenshotMatchesQuery]).
 /// - Empty or whitespace-only queries keep the last non-empty results.
+/// - Late responses or failures from abandoned queries are discarded.
 /// - Backend failures surface as `AsyncError` instead of being swallowed.
 class SearchResultsNotifier extends AsyncNotifier<List<ScreenshotModel>> {
   Timer? _debounceTimer;
@@ -103,10 +117,20 @@ class SearchResultsNotifier extends AsyncNotifier<List<ScreenshotModel>> {
     final currentQuery = normalizeSearchQuery(ref.read(searchQueryProvider));
     if (currentQuery.isEmpty) return _lastResults;
 
-    // Any error propagates and becomes AsyncError on this provider.
-    final results = await ref.read(screenshotSearcherProvider)(currentQuery);
-    _lastResults = results;
-    return results;
+    // The fetch is raced against newer keystrokes: a response (or failure)
+    // that lands after a fresher build started belongs to an abandoned
+    // query and must never become the current state nor the "last results"
+    // an empty query would resurrect.
+    try {
+      final results = await ref.read(screenshotSearcherProvider)(currentQuery);
+      if (buildId != _buildId) return _lastResults;
+      _lastResults = results;
+      return results;
+    } catch (error) {
+      if (buildId != _buildId) return _lastResults;
+      // Surfaces as AsyncError on this provider; the screen shows a retry.
+      rethrow;
+    }
   }
 }
 

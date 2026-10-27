@@ -27,6 +27,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // The query lives in a global provider and survives navigation; a fresh
+    // (empty) text field above still-visible results would desync the UI,
+    // so seed the controller with the current query.
+    _searchController.text = ref.read(searchQueryProvider);
     _focusNode.requestFocus();
   }
 
@@ -66,6 +70,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         border: Border.all(color: sb.borderLight),
                       ),
                       child: TextField(
+                        key: const Key('searchInput'),
                         controller: _searchController,
                         focusNode: _focusNode,
                         autofocus: true,
@@ -84,6 +89,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ),
                           suffixIcon: query.isNotEmpty
                               ? IconButton(
+                                  key: const Key('searchClearButton'),
                                   icon: Icon(
                                     Icons.close_rounded,
                                     color: sb.textTertiary,
@@ -187,6 +193,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           );
         }
         return ListView.builder(
+          key: const Key('searchResultsList'),
           padding: const EdgeInsets.symmetric(horizontal: SBSpacing.lg),
           itemCount: results.length,
           itemBuilder: (context, index) {
@@ -326,49 +333,69 @@ class _HighlightedText extends StatelessWidget {
 
   const _HighlightedText({required this.text, required this.query, this.style});
 
+  static final _whitespace = RegExp(r'\s+');
+
+  static String _escapeForRegExp(String input) => input.splitMapJoin(
+    RegExp(r'[.*+?^${}()|[\]\\]'),
+    onMatch: (m) => '\\${m[0]}',
+    onNonMatch: (n) => n,
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (query.isEmpty) {
-      return Text(
-        text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
+    final baseStyle = style ?? theme.textTheme.bodySmall;
+
+    // Matching is per-token (AND), so results can contain the words far
+    // apart and never the contiguous phrase the user typed; highlight every
+    // token occurrence instead of only exact-phrase hits.
+    final tokens = query
+        .split(_whitespace)
+        .where((token) => token.isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) {
+      return _plainText(baseStyle);
     }
 
-    final lowerText = text.toLowerCase();
-    final lowerQuery = query.toLowerCase();
-    final index = lowerText.indexOf(lowerQuery);
+    final pattern = RegExp(
+      tokens.map(_escapeForRegExp).join('|'),
+      caseSensitive: false,
+    );
+    final matches = pattern.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return _plainText(baseStyle);
+    }
 
-    if (index == -1) {
-      return Text(
-        text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
+    final highlightStyle = (baseStyle ?? const TextStyle()).copyWith(
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+      color: theme.colorScheme.primary,
+    );
+    final children = <InlineSpan>[];
+    var cursor = 0;
+    for (final match in matches) {
+      if (match.start > cursor) {
+        children.add(TextSpan(text: text.substring(cursor, match.start)));
+      }
+      children.add(TextSpan(text: match[0], style: highlightStyle));
+      cursor = match.end;
+    }
+    if (cursor < text.length) {
+      children.add(TextSpan(text: text.substring(cursor)));
     }
 
     return RichText(
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: style ?? theme.textTheme.bodySmall,
-        children: [
-          if (index > 0) TextSpan(text: text.substring(0, index)),
-          TextSpan(
-            text: text.substring(index, index + query.length),
-            style: TextStyle(
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          if (index + query.length < text.length)
-            TextSpan(text: text.substring(index + query.length)),
-        ],
-      ),
+      text: TextSpan(style: baseStyle, children: children),
+    );
+  }
+
+  Widget _plainText(TextStyle? textStyle) {
+    return Text(
+      text,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: textStyle,
     );
   }
 }

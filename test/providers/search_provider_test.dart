@@ -60,6 +60,20 @@ void main() {
     test('empty query never matches', () {
       expect(screenshotMatchesQuery(screenshot, ''), isFalse);
     });
+
+    test('multi-word query uses AND semantics across fields, not a phrase', () {
+      // Real screenshots rarely contain the exact phrase "train ticket";
+      // the words are scattered across the file name, the OCR text and the
+      // category. Every token must match somewhere, but not necessarily
+      // together or in the same field.
+      final ticket = makeScreenshot(
+        filePath: '/sdcard/Pictures/train_booking.png',
+        extractedText: 'PNR 555 status: ticket confirmed',
+        category: 'Travel Tickets',
+      );
+      expect(screenshotMatchesQuery(ticket, 'train ticket'), isTrue);
+      expect(screenshotMatchesQuery(ticket, 'pnr confirmed hotels'), isFalse);
+    });
   });
 
   group('filterScreenshotsByQuery', () {
@@ -90,6 +104,23 @@ void main() {
 
     test('empty query returns no results (callers keep last results)', () {
       expect(filterScreenshotsByQuery(seed, ''), isEmpty);
+    });
+
+    test('multi-word query keeps only screenshots containing every token', () {
+      final corpus = [
+        makeScreenshot(
+          filePath: '/a/train_booking.png',
+          extractedText: 'Ticket confirmed PNR 555',
+          category: 'Travel Tickets',
+        ),
+        makeScreenshot(
+          filePath: '/a/train_station_photo.png',
+          extractedText: 'Selfie at the platform',
+        ),
+      ];
+      final results = filterScreenshotsByQuery(corpus, 'train ticket');
+      expect(results, hasLength(1));
+      expect(results.single.filePath, '/a/train_booking.png');
     });
   });
 
@@ -233,6 +264,85 @@ void main() {
       final state = container.read(searchResultsProvider);
       expect(state.hasError, isTrue);
       expect(state.error.toString(), contains('db exploded'));
+    });
+
+    testWidgets('a late response for an abandoned query cannot poison '
+        'the kept-last-results behaviour', (tester) async {
+      final slowOnly = makeScreenshot(
+        filePath: '/slow.png',
+        extractedText: 'only slow matches here',
+      );
+      final fastOnly = makeScreenshot(
+        filePath: '/fast.png',
+        extractedText: 'only fast matches here',
+      );
+      final corpus = [slowOnly, fastOnly];
+      container = buildContainer((query) async {
+        backendCalls.add(query);
+        if (query == 'slow') {
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+        }
+        return filterScreenshotsByQuery(corpus, query);
+      });
+      container.listen(searchResultsProvider, (_, _) {});
+
+      container.read(searchQueryProvider.notifier).state = 'slow';
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(backendCalls, ['slow'], reason: 'slow fetch is still in flight');
+
+      container.read(searchQueryProvider.notifier).state = 'fast';
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(backendCalls, ['slow', 'fast']);
+      expect(
+        container.read(searchResultsProvider).value!.single.filePath,
+        '/fast.png',
+      );
+
+      // The abandoned 'slow' fetch now lands late. It must not be remembered
+      // as the last results, otherwise clearing the query resurrects it.
+      await tester.pump(const Duration(milliseconds: 600));
+      container.read(searchQueryProvider.notifier).state = '';
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+
+      final value = container.read(searchResultsProvider).value;
+      expect(value, hasLength(1));
+      expect(
+        value!.single.filePath,
+        '/fast.png',
+        reason: 'stale slow response overwrote the newest results',
+      );
+    });
+
+    testWidgets('a late failure for an abandoned query does not surface '
+        'as an error over newer results', (tester) async {
+      container = buildContainer((query) async {
+        backendCalls.add(query);
+        if (query == 'boom') {
+          await Future<void>.delayed(const Duration(milliseconds: 600));
+          throw StateError('late boom');
+        }
+        return [makeScreenshot(filePath: '/ok.png', extractedText: 'ok query')];
+      });
+      container.listen(searchResultsProvider, (_, _) {});
+
+      container.read(searchQueryProvider.notifier).state = 'boom';
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(backendCalls, ['boom']);
+
+      container.read(searchQueryProvider.notifier).state = 'ok';
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(backendCalls, ['boom', 'ok']);
+      expect(container.read(searchResultsProvider).value, hasLength(1));
+
+      await tester.pump(const Duration(milliseconds: 600));
+      final state = container.read(searchResultsProvider);
+      expect(
+        state.hasError,
+        isFalse,
+        reason: 'stale boom rejection leaked into current state',
+      );
+      expect(state.value, hasLength(1));
     });
   });
 }
