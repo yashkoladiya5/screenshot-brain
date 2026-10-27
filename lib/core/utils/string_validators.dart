@@ -18,19 +18,30 @@ class StringValidators {
     r'\.[A-Za-z]{2,}$',
   );
 
-  /// E.164: `+` followed by 1-15 digits, no more than 15 digits total.
+  /// E.164: `+` followed by 7-15 digits, the first one non-zero. Checked
+  /// against the separator-stripped form, so a spaced `+91 98765 43210`
+  /// still qualifies.
   static final RegExp _e164Re = RegExp(r'^\+[1-9]\d{6,14}$');
 
-  /// Plain 10-digit national fallback (US-style), allowing separators.
-  static final RegExp _tenDigitRe = RegExp(r'^\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$');
+  /// Plain 10-digit national fallback, checked against the separator-stripped
+  /// form so any grouping (`9876543210`, `987-654-3210`, `98765 43210`) reads
+  /// the same.
+  static final RegExp _tenDigitRe = RegExp(r'^\d{10}$');
+
+  /// Cosmetic phone separators: hyphen, dot and any whitespace (including the
+  /// non-breaking spaces OCR emits).
+  static final RegExp _phoneSeparatorRe = RegExp(r'[-.\s]');
 
   /// URL with optional scheme, registrable host, optional port and
-  /// path/query/fragment (multi-segment paths allowed).
+  /// path/query/fragment (multi-segment paths allowed). Matched
+  /// case-insensitively because hostnames and schemes are, and the TLD length
+  /// is uncapped so modern suffixes (`.website`, `.technology`) pass.
   static final RegExp _urlRe = RegExp(
     r'^(?:https?://)?'
-    r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,6}'
+    r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}'
     r'(?::\d{1,5})?'
     r'(?:[/?#]\S*)?$',
+    caseSensitive: false,
   );
 
   /// Currency tokens understood by the app's expense extraction pipeline
@@ -64,6 +75,14 @@ class StringValidators {
     RegExp(r'^\d+\.\d{1,2}$'), // 1299.90
     RegExp(r'^\d+$'), // 1299
   ];
+
+  /// Longest digit run that can still be money. Mirrors the guard the
+  /// extraction pipeline applies in `_parseNumber`: longer runs are UTR /
+  /// reference / card numbers, and past nine digits the parsed value is no
+  /// longer exactly representable as a [double] anyway.
+  static const int _maxAmountDigits = 9;
+
+  static final RegExp _nonDigitRe = RegExp(r'\D');
 
   /// Checks if a string contains at least one uppercase letter.
   static bool hasUpperCase(String value) {
@@ -109,13 +128,16 @@ class StringValidators {
   }
 
   /// Validates a phone number: strict E.164 (`+919876543210`) or a 10-digit
-  /// national fallback with optional `-`, `.` or space separators
-  /// (`987-654-3210`). Spaces around the whole number are tolerated.
+  /// national fallback. `-`, `.` and whitespace are treated as cosmetic
+  /// grouping, so `987-654-3210`, `98765 43210` (the usual Indian mobile
+  /// grouping) and `+91 98765-43210` all pass; anything that is not digits
+  /// after stripping them (`(415) 555-0123`) does not.
   static bool isValidPhone(String value) {
     final v = value.trim();
     if (v.isEmpty) return false;
-    if (_e164Re.hasMatch(v)) return true;
-    return _tenDigitRe.hasMatch(v.replaceAll(RegExp(r'[-.\s]'), '-'));
+    final closed = v.replaceAll(_phoneSeparatorRe, '');
+    if (_e164Re.hasMatch(closed)) return true;
+    return _tenDigitRe.hasMatch(closed);
   }
 
   /// True when [value] looks like a money amount the expense pipeline can
@@ -125,8 +147,10 @@ class StringValidators {
 
   /// Normalizes a supported amount string to a [double], or null when the
   /// string is not a valid amount. Indian (`1,29,900`) and Western
-  /// (`1,29,900.00`) grouping both resolve to 129900.0; European
-  /// (`1.299,90`) resolves to 1299.90.
+  /// (`1,299.90`) grouping both resolve by dropping the thousands separators
+  /// (129900.0 and 1299.90); European (`1.299,90`) resolves to 1299.90.
+  /// Digit runs longer than [_maxAmountDigits] are reference numbers, not
+  /// money, and resolve to null.
   static double? parseAmount(String value) {
     var s = value.trim();
     if (s.isEmpty) return null;
@@ -142,6 +166,7 @@ class StringValidators {
       return null;
     }
     if (!_amountRes.any((re) => re.hasMatch(s))) return null;
+    if (s.replaceAll(_nonDigitRe, '').length > _maxAmountDigits) return null;
 
     double? out;
     if (RegExp(r'^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$').hasMatch(s)) {

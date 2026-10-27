@@ -76,12 +76,28 @@ void main() {
       expect(StringValidators.isValidPhone('987.654.3210'), isTrue);
     });
 
+    test('separator placement is cosmetic, not part of the number', () {
+      // Indian receipts and contacts group a mobile as '98765 43210', and a
+      // stored E.164 value often carries spaces: both used to be rejected
+      // because the national pattern demanded 3-3-4 grouping.
+      expect(StringValidators.isValidPhone('98765 43210'), isTrue);
+      expect(StringValidators.isValidPhone('98765-43210'), isTrue);
+      expect(StringValidators.isValidPhone('98765.43210'), isTrue);
+      expect(StringValidators.isValidPhone('+91 98765 43210'), isTrue);
+      expect(StringValidators.isValidPhone('+91-98765-43210'), isTrue);
+      expect(StringValidators.isValidPhone('+1 415 555 0123'), isTrue);
+    });
+
     test('rejects wrong digit counts and junk', () {
       expect(StringValidators.isValidPhone('12345'), isFalse);
       expect(StringValidators.isValidPhone('123456789'), isFalse);
       expect(StringValidators.isValidPhone('12345678901'), isFalse);
       expect(StringValidators.isValidPhone('abc-def-gghi'), isFalse);
       expect(StringValidators.isValidPhone(''), isFalse);
+      // Non-digit decoration is still not tolerated.
+      expect(StringValidators.isValidPhone('(415) 555-0123'), isFalse);
+      expect(StringValidators.isValidPhone('987 654 32 10 extra'), isFalse);
+      expect(StringValidators.isValidPhone('+91 98765 43210x'), isFalse);
     });
 
     test('validatePhone wrapper', () {
@@ -115,6 +131,20 @@ void main() {
       expect(StringValidators.isValidUrl('ftp://example.com'), isFalse);
       expect(StringValidators.isValidUrl('example'), isFalse);
       expect(StringValidators.isValidUrl('://x.com'), isFalse);
+    });
+
+    test('is case-insensitive and allows long modern TLDs', () {
+      // Hostnames are case-insensitive, and OCR/typed links come back as
+      // 'HTTPS://Example.COM'; the old pattern also capped the TLD at 6
+      // letters, so '.website' and '.technology' were rejected.
+      expect(StringValidators.isValidUrl('HTTPS://Example.COM'), isTrue);
+      expect(StringValidators.isValidUrl('Example.COM'), isTrue);
+      expect(StringValidators.isValidUrl('https://Shop.Online/cart'), isTrue);
+      expect(StringValidators.isValidUrl('example.website'), isTrue);
+      expect(StringValidators.isValidUrl('studio.photography'), isTrue);
+      expect(StringValidators.isValidUrl('https://a.technology'), isTrue);
+      // Still needs a dot and an alphabetic TLD.
+      expect(StringValidators.isValidUrl('HTTPS://EXAMPLE'), isFalse);
     });
 
     test('validateUrl wrapper', () {
@@ -198,6 +228,27 @@ void main() {
       expect(StringValidators.parseAmount('1299,90'), 1299.90);
       expect(StringValidators.parseAmount('Rs. 450'), 450.0);
       expect(StringValidators.parseAmount('junk'), isNull);
+    });
+
+    test('rejects digit runs too long to be money', () {
+      // UTR / reference / card numbers are all-digit strings. The extraction
+      // pipeline already rejects anything past 9 digits; the validator had no
+      // such guard, so it called '4111111111111234' a valid amount and
+      // `parseAmount` silently corrupted 19-digit input into 1.0e19.
+      expect(StringValidators.isValidAmount('9999999999999999999'), isFalse);
+      expect(
+        StringValidators.parseAmount('9999999999999999999'),
+        isNull,
+        reason: 'must not silently return 1.0e19',
+      );
+      expect(StringValidators.isValidAmount('123456789012345678'), isFalse);
+      expect(StringValidators.isValidAmount('4111111111111234'), isFalse);
+      expect(StringValidators.parseAmount('1234567890'), isNull);
+      expect(StringValidators.parseAmount('1,23,45,678.90'), isNull);
+      // Nine digits stay exactly representable as a double.
+      expect(StringValidators.parseAmount('123456789'), 123456789.0);
+      expect(StringValidators.parseAmount('₹1,29,900.50'), 129900.50);
+      expect(StringValidators.parseAmount('1,299.90'), 1299.90);
     });
 
     test('validateAmount wrapper', () {

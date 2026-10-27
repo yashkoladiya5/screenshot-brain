@@ -8,12 +8,15 @@ extension StringCasingExtensions on String {
 
   /// Converts the string to Title Case (capitalizes the first letter of each word).
   /// Example: "hello world".toTitleCase() -> "Hello World"
+  ///
+  /// Words are split on any whitespace run (tabs, newlines and non-breaking
+  /// spaces included, as OCR text produces them) and rejoined with one space.
   String toTitleCase() {
     if (isEmpty) return this;
-    return replaceAll(
-      RegExp(r' +'),
-      ' ',
-    ).split(' ').map((str) => str.toCapitalized()).join(' ');
+    return trim()
+        .split(RegExp(r'\s+'))
+        .map((str) => str.toCapitalized())
+        .join(' ');
   }
 
   /// Converts to `snake_case` from camel/Pascal/kebab/spaced input.
@@ -21,13 +24,17 @@ extension StringCasingExtensions on String {
   /// Word boundaries are detected between lower/digit and uppercase runs
   /// and inside acronyms: `'HTMLParser'.toSnakeCase()` -> `'html_parser'`,
   /// `'userID'` -> `'user_id'`, `'Foo2Bar'` -> `'foo2_bar'`.
+  ///
+  /// Letters, digits and combining marks of any script are kept (`'café'` ->
+  /// `'café'`, `'किरण'` stays whole because its vowel signs are marks, not
+  /// separators); only punctuation and whitespace become separators.
   String toSnakeCase() {
     final separated = replaceAll(
       RegExp(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])'),
       '_',
     );
     return separated
-        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '')
         .toLowerCase();
   }

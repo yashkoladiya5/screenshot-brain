@@ -21,9 +21,32 @@ void main() {
       expect('nope'.isValidEmail, isFalse);
     });
 
+    test('isValidEmail agrees with the canonical StringValidators rule', () {
+      // The legacy local regex had a different character class, so ordinary
+      // plus-addressed and underscored addresses were rejected in the UI
+      // while the form validator accepted them.
+      expect('user+tag@example.com'.isValidEmail, isTrue);
+      expect('user_name@example.com'.isValidEmail, isTrue);
+      expect("o'connor@corp.io".isValidEmail, isTrue);
+      // And it was unanchored, so OCR noise glued to an address passed.
+      expect('user@example.com<script>'.isValidEmail, isFalse);
+      expect('a@b.com or junk'.isValidEmail, isFalse);
+      expect('.user@example.com'.isValidEmail, isFalse);
+      expect('user..name@example.com'.isValidEmail, isFalse);
+    });
+
     test('truncate (legacy) appends three dots', () {
       expect('hello world'.truncate(5), 'hello...');
       expect('short'.truncate(10), 'short');
+    });
+
+    test('truncate never leaves a dangling surrogate', () {
+      // A budget of 3 UTF-16 code units lands in the middle of the second
+      // emoji; the cut backs off to the last whole code point.
+      expect('\u{1F44D}\u{1F44D}\u{1F44D}'.truncate(3), '\u{1F44D}...');
+      expect('\u{1F44D}x'.truncate(1), '...');
+      expect('\u{1F44D}\u{1F44D}'.truncate(4), '\u{1F44D}\u{1F44D}');
+      expect('\u{1F44D}\u{1F44D}'.truncate(2), '\u{1F44D}...');
     });
   });
 
@@ -32,6 +55,15 @@ void main() {
       expect('  hello \t\n world '.collapseWhitespace(), 'hello world');
       expect('single'.collapseWhitespace(), 'single');
       expect('   '.collapseWhitespace(), '');
+    });
+  });
+
+  group('capitalizeWords', () {
+    test('capitalizes across every kind of whitespace run', () {
+      expect('foo\tbar baz'.capitalizeWords(), 'Foo\tBar Baz');
+      // OCR text arrives with non-breaking spaces between merchant words.
+      expect('mega\u{A0}mart'.capitalizeWords(), 'Mega\u{A0}Mart');
+      expect('a  b'.capitalizeWords(), 'A  B');
     });
   });
 
@@ -76,6 +108,16 @@ void main() {
       expect('8888001234'.maskMiddle(maskChar: '•'), '••••••1234');
       expect(() => '1234'.maskMiddle(visibleSuffix: -1), throwsAssertionError);
     });
+
+    test('never cuts a surrogate pair in half', () {
+      // Asking for one visible code point out of four two-unit emoji would
+      // put the mask boundary between the halves; the boundary backs off so
+      // the retained suffix is a whole code point.
+      expect(
+        '\u{1F44D}\u{1F44D}\u{1F44D}\u{1F44D}'.maskMiddle(visibleSuffix: 1),
+        '*' * 6 + '\u{1F44D}',
+      );
+    });
   });
 
   group('initials', () {
@@ -107,6 +149,11 @@ void main() {
       expect('Café'.slugify(), 'caf');
       expect('grocery 2024'.slugify(separator: '__'), 'grocery__2024');
     });
+
+    test('an empty separator joins the words instead of looping forever', () {
+      expect('Hello, World!'.slugify(separator: ''), 'helloworld');
+      expect('  --Hello World--  '.slugify(separator: ''), 'helloworld');
+    });
   });
 
   group('StringCasingExtensions existing behavior', () {
@@ -124,6 +171,16 @@ void main() {
         reason: 'existing spec lowercases the rest of each word',
       );
     });
+
+    test('toTitleCase capitalizes words split by any whitespace', () {
+      // OCR text breaks merchant names on newlines/tabs and non-breaking
+      // spaces; splitting on literal spaces only left every later word
+      // lowercased.
+      expect('hello\tworld'.toTitleCase(), 'Hello World');
+      expect('big\nbazaar'.toTitleCase(), 'Big Bazaar');
+      expect('mega\u{A0}mart'.toTitleCase(), 'Mega Mart');
+      expect('  padded  words  '.toTitleCase(), 'Padded Words');
+    });
   });
 
   group('toSnakeCase', () {
@@ -136,6 +193,21 @@ void main() {
       expect('Hello World'.toSnakeCase(), 'hello_world');
       expect('user_name'.toSnakeCase(), 'user_name');
       expect(''.toSnakeCase(), '');
+    });
+
+    test('keeps letters outside ASCII instead of turning them into gaps', () {
+      // The separator class was ASCII-only, so every accented or Devanagari
+      // letter was deleted: 'Ünïcode Name' collapsed to 'n_code_name'.
+      expect('Ünïcode Name'.toSnakeCase(), 'ünïcode_name');
+      expect('café'.toSnakeCase(), 'café');
+      // किरण — the vowel signs are combining marks and must not read as
+      // separators.
+      expect(
+        'kiran \u{915}\u{93F}\u{930}\u{923} store'.toSnakeCase(),
+        'kiran_\u{915}\u{93F}\u{930}\u{923}_store',
+      );
+      expect('café'.toKebabCase(), 'café');
+      expect('Café Restaurant'.toPascalCase(), 'CaféRestaurant');
     });
   });
 

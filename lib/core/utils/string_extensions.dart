@@ -1,3 +1,11 @@
+import 'string_validators.dart';
+
+/// UTF-16 halves of a surrogate pair: a lead unit is always followed by its
+/// trail unit, and cutting between the two yields an invalid string.
+bool _isLeadSurrogate(int codeUnit) => (codeUnit & 0xFC00) == 0xD800;
+
+bool _isTrailSurrogate(int codeUnit) => (codeUnit & 0xFC00) == 0xDC00;
+
 extension StringExtensions on String {
   /// Capitalizes the first letter of the string, keeping the rest as-is.
   String capitalizeFirst() {
@@ -6,21 +14,33 @@ extension StringExtensions on String {
   }
 
   /// Capitalizes the first letter of every word in the string.
-  String capitalizeWords() {
-    if (isEmpty) return this;
-    return split(' ').map((word) => word.capitalizeFirst()).join(' ');
-  }
+  ///
+  /// Separators (any whitespace run) are preserved verbatim, so
+  /// `'a  b'` keeps its double space and `'foo\tbar'` its tab.
+  String capitalizeWords() => splitMapJoin(
+    RegExp(r'\s+'),
+    onMatch: (m) => m[0]!,
+    onNonMatch: (word) => word.capitalizeFirst(),
+  );
 
   /// Checks if a string is a valid email.
-  bool get isValidEmail {
-    final emailRegExp = RegExp(r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+');
-    return emailRegExp.hasMatch(this);
-  }
+  ///
+  /// Delegates to [StringValidators.isValidEmail] so this getter and the form
+  /// validator can never disagree: the previous local regex was unanchored at
+  /// the tail (`'user@example.com<script>'` passed) and rejected characters
+  /// that real addresses use (`'user+tag@example.com'`, `'a_b@x.com'`).
+  bool get isValidEmail => StringValidators.isValidEmail(this);
 
   /// Truncates the string to the specified length and appends '...'
+  ///
+  /// [length] counts UTF-16 code units, but the cut backs off by one when it
+  /// would land inside a surrogate pair — a dangling half is invalid text and
+  /// corrupts whatever renders or encodes the result.
   String truncate(int length) {
     if (this.length <= length) return this;
-    return '${substring(0, length)}...';
+    var cut = length;
+    if (cut > 0 && _isLeadSurrogate(codeUnitAt(cut - 1))) cut -= 1;
+    return '${substring(0, cut)}...';
   }
 
   /// Collapses every run of whitespace into a single space and trims ends.
@@ -45,11 +65,15 @@ extension StringExtensions on String {
   /// Masks everything but the last [visibleSuffix] characters with
   /// [maskChar], e.g. card numbers: `'4111111111111234'.maskMiddle()`
   /// -> `'************1234'`. Strings no longer than the suffix stay intact.
+  ///
+  /// The boundary moves back a code unit when it would otherwise sit inside a
+  /// surrogate pair, so the visible suffix is always whole characters.
   String maskMiddle({int visibleSuffix = 4, String maskChar = '*'}) {
     assert(visibleSuffix >= 0, 'visibleSuffix must not be negative');
     if (length <= visibleSuffix) return this;
-    return maskChar * (length - visibleSuffix) +
-        substring(length - visibleSuffix);
+    var start = length - visibleSuffix;
+    if (start < length && _isTrailSurrogate(codeUnitAt(start))) start -= 1;
+    return maskChar * start + substring(start);
   }
 
   /// Uppercased initials of the whitespace-separated words, at most
@@ -77,6 +101,9 @@ extension StringExtensions on String {
       RegExp(r'[^a-z0-9]+'),
       separator,
     );
+    // An empty separator means "join the runs"; the trim loops below must not
+    // run because `startsWith('')` is always true, so they would never exit.
+    if (separator.isEmpty) return slug;
     while (slug.startsWith(separator)) {
       slug = slug.substring(separator.length);
     }
