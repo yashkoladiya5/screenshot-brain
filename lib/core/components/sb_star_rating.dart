@@ -76,7 +76,7 @@ class _SbStarRatingState extends State<SbStarRating> {
     final active = widget.activeColor ?? Colors.amber.shade500;
     final inactive = widget.inactiveColor ?? colorScheme.outlineVariant.withValues(alpha: 0.5);
 
-    return GestureDetector(
+    final interactive = GestureDetector(
       onHorizontalDragStart: (details) {
         _isDragging = true;
         _handleInteraction(details.localPosition);
@@ -124,6 +124,14 @@ class _SbStarRatingState extends State<SbStarRating> {
           );
         }),
       ),
+    );
+
+    // Icon widgets exclude their glyphs from the semantics tree, so without
+    // this wrapper the rating is invisible to screen readers.
+    return Semantics(
+      label: 'Rating',
+      value: '${_currentRating.toStringAsFixed(1)} out of ${widget.maxStars} stars',
+      child: interactive,
     );
   }
 }

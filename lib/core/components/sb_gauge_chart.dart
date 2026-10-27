@@ -48,7 +48,9 @@ class SbGaugeChart extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${(value * 100).toInt()}%',
+                  // round(), not toInt(): floating point products like
+                  // 0.29 * 100 == 28.999999999999996 would truncate to "28%".
+                  '${(value * 100).round()}%',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
