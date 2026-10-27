@@ -29,6 +29,12 @@ class ScreenshotListScreen extends ConsumerStatefulWidget {
 class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
   static const String _allLabel = 'All';
 
+  /// Longest edge (physical px) a tile is decoded at. Screenshots are
+  /// full-resolution bitmaps; decoding them at native size for a ~160px tile
+  /// multiplies memory by 5-10x per row and storms the rasterizer once the
+  /// library grows past a few hundred items. ResizeImage bounds the decode.
+  static const int _tileDecodeWidth = 512;
+
   /// Selected chip label, or null when unfiltered.
   String? _selectedCategory;
 
@@ -80,10 +86,18 @@ class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
           onRetry: () => ref.invalidate(screenshotListProvider),
         ),
         data: (screenshots) {
+          // The chip badges come from categoryCountsProvider, which buckets
+          // uncategorized rows (category == null) into `Other`. Filtering on
+          // categoryDisplay ('Uncategorized') instead made the 'Other' badge
+          // promise rows its grid then dropped, so both sides use the same
+          // effectiveCategoryOf bucketing.
           final filtered = _selectedCategory == null
               ? screenshots
               : screenshots
-                    .where((s) => s.categoryDisplay == _selectedCategory)
+                    .where(
+                      (s) =>
+                          effectiveCategoryOf(s.category) == _selectedCategory,
+                    )
                     .toList();
 
           return Column(
@@ -131,7 +145,13 @@ class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
       onRefresh: () async {
         ref.invalidate(screenshotListProvider);
         ref.invalidate(categoryCountsProvider);
-        await ref.read(screenshotListProvider.future);
+        // Await only to keep the material spinner until the reload settles;
+        // a failure must NOT escape this callback — RefreshIndicator would
+        // leave its spinner hanging on an unhandled error. The reload's
+        // AsyncError state is what renders the failure, via the when() below.
+        try {
+          await ref.read(screenshotListProvider.future);
+        } catch (_) {}
       },
       child: GridView.builder(
         padding: const EdgeInsets.all(SBSpacing.lg),
@@ -156,8 +176,14 @@ class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(SBRadius.xl),
                     ),
-                    child: Image.file(
-                      File(screenshot.filePath),
+                    child: Image(
+                      // ResizeImage bounds the actual decode (targetWidth in
+                      // the codec), so a row costs thumbnail-scale memory
+                      // even when the screenshot file is full resolution.
+                      image: ResizeImage(
+                        FileImage(File(screenshot.filePath)),
+                        width: _tileDecodeWidth,
+                      ),
                       fit: BoxFit.cover,
                       width: double.infinity,
                       errorBuilder: (_, _, _) => Container(

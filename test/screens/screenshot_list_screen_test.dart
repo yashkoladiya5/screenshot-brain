@@ -22,7 +22,7 @@ late final String _pngC;
 ScreenshotItem _item({
   required int id,
   required String path,
-  required String category,
+  required String? category,
 }) => ScreenshotItem(
   id: id,
   filePath: path,
@@ -213,6 +213,105 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Scan Now'));
       await tester.pump();
       expect(scanNotifier.scanCalls, 1);
+    });
+
+    // DEFECT PROOF: categoryCountsProvider buckets uncategorized rows
+    // (category == null) into 'Other' via countByBucket, but the grid filter
+    // compared the chip label against ScreenshotItem.categoryDisplay, which
+    // renders those rows as 'Uncategorized'. Tapping 'Other (N)' therefore
+    // hid the very rows the badge counted and showed a bogus empty state.
+    testWidgets('Other chip filters with the same bucketing its badge counts', (
+      tester,
+    ) async {
+      final items = [
+        _item(id: 1, path: _pngA, category: 'Bills'),
+        _item(id: 2, path: _pngB, category: null),
+      ];
+      await tester.pumpWidget(
+        _wrap(_overrides(items: items, counts: const {'Bills': 1, 'Other': 1})),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Other (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EmptyStateWidget), findsNothing);
+      expect(find.text('Uncategorized'), findsOneWidget);
+      expect(find.text('Bills'), findsNothing);
+
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+      expect(find.text('Uncategorized'), findsOneWidget);
+      expect(find.text('Bills'), findsOneWidget);
+    });
+
+    // DEFECT PROOF: onRefresh awaited screenshotListProvider.future directly,
+    // so a reload that threw completed the RefreshIndicator callback with an
+    // unhandled error — the spinner never closed and the failure surfaced as
+    // an uncaught exception instead of the AppErrorWidget path.
+    testWidgets('a failing pull-to-refresh lands on the error widget, not an '
+        'unhandled exception with a hanging spinner', (tester) async {
+      var calls = 0;
+      final items = [_item(id: 1, path: _pngA, category: 'Bills')];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            screenshotListProvider.overrideWith((ref) async {
+              calls++;
+              if (calls > 1) throw StateError('refresh exploded');
+              return items;
+            }),
+            categoryCountsProvider.overrideWith(
+              (ref) async => const {'Bills': 1},
+            ),
+          ],
+          child: const MaterialApp(home: ScreenshotListScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(GridView), findsOneWidget);
+
+      await tester.flingFrom(
+        tester.getCenter(find.byType(GridView)),
+        const Offset(0, 300),
+        1200,
+      );
+      await tester.pumpAndSettle();
+
+      expect(calls, greaterThan(1));
+      expect(find.byType(AppErrorWidget), findsOneWidget);
+      expect(find.textContaining('refresh exploded'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    // DEFECT PROOF: every tile fed a full-resolution File image into the
+    // widget tree (bare Image.file, no ResizeImage/memCache bound). A library
+    // of hundreds of screenshots means hundreds of multi-megapixel bitmap
+    // decodes for ~150px tiles; the grid must request a downsampled decode.
+    testWidgets('tiles decode screenshots at thumbnail scale, not full size', (
+      tester,
+    ) async {
+      final items = [
+        _item(id: 1, path: _pngA, category: 'Bills'),
+        _item(id: 2, path: _pngB, category: 'Travel Tickets'),
+      ];
+      await tester.pumpWidget(_wrap(_overrides(items: items)));
+      await tester.pumpAndSettle();
+
+      final tiles = tester.widgetList<Image>(
+        find.descendant(
+          of: find.byType(GridView),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(tiles, isNotEmpty);
+      for (final image in tiles) {
+        expect(
+          image.image,
+          isA<ResizeImage>(),
+          reason: 'unbounded full-resolution decode per tile',
+        );
+      }
     });
   });
 }
