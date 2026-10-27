@@ -19,6 +19,37 @@ const List<String> kCategoryList = [
   'Other',
 ];
 
+/// Bucket that receives screenshots which have not been categorized yet.
+const String kUncategorizedBucket = 'Other';
+
+/// Category a stored row belongs to: uncategorized rows (`category == null`)
+/// live in the `Other` bucket.
+String effectiveCategoryOf(String? storedCategory) =>
+    storedCategory ?? kUncategorizedBucket;
+
+/// Counts rows by [effectiveCategoryOf], the same bucketing the category
+/// badges promise. Kept pure so the count/query symmetry can be tested
+/// without a database.
+Map<String, int> countByBucket(Iterable<String?> storedCategories) {
+  final counts = <String, int>{};
+  for (final stored in storedCategories) {
+    final bucket = effectiveCategoryOf(stored);
+    counts[bucket] = (counts[bucket] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/// Whether the listing for [bucket] must also return uncategorized rows.
+/// The `Other` badge counts those rows, so its query has to include them;
+/// every other bucket matches only its exact label.
+bool bucketQueryIncludesNulls(String bucket) => bucket == kUncategorizedBucket;
+
+/// Whether a stored row counted into [bucket] is returned by that bucket's
+/// listing — the symmetry contract between [categoryCountsProvider] and
+/// [screenshotsByCategoryProvider].
+bool screenshotMatchesBucket(String? storedCategory, String bucket) =>
+    effectiveCategoryOf(storedCategory) == bucket;
+
 /// Orders raw category counts for display: most screenshots first, then by
 /// the canonical vocabulary order, then alphabetically for unknown extras.
 ///
@@ -65,20 +96,19 @@ final categoryListProvider = Provider<List<String>>((ref) {
 final categoryCountsProvider = FutureProvider<Map<String, int>>((ref) async {
   final db = DatabaseService.db;
   final all = await db.screenshotModels.where().findAll();
-  final counts = <String, int>{};
-  for (final screenshot in all) {
-    final category = screenshot.category ?? 'Other';
-    counts[category] = (counts[category] ?? 0) + 1;
-  }
+  final counts = countByBucket(all.map((screenshot) => screenshot.category));
   return orderCategoryCounts(counts);
 });
 
 final screenshotsByCategoryProvider =
     FutureProvider.family<List<ScreenshotModel>, String>((ref, category) {
   final db = DatabaseService.db;
-  return db.screenshotModels
-      .filter()
-      .categoryEqualTo(category)
-      .sortByCreatedAtDesc()
-      .findAll();
+  final filter = db.screenshotModels.filter().categoryEqualTo(category);
+  // Uncategorized rows are counted in the `Other` badge, so the `Other`
+  // listing must include them; otherwise the card promises screenshots
+  // the screen then fails to show.
+  final query = bucketQueryIncludesNulls(category)
+      ? filter.or().categoryIsNull()
+      : filter;
+  return query.sortByCreatedAtDesc().findAll();
 });

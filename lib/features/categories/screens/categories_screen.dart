@@ -13,19 +13,24 @@ import '../../../core/theme/theme_extensions.dart';
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
-  static const _categories = [
-    ('Payments', Icons.payments_rounded, AppColors.categoryPayments),
-    ('UPI Receipts', Icons.account_balance_rounded, AppColors.categoryUpi),
-    ('Shopping', Icons.shopping_bag_rounded, AppColors.categoryShopping),
-    ('Travel Tickets', Icons.flight_rounded, AppColors.categoryTravel),
-    ('Bills', Icons.receipt_long_rounded, AppColors.categoryBills),
-    ('Documents', Icons.description_rounded, AppColors.categoryDocuments),
-    ('OTP Screenshots', Icons.sms_rounded, AppColors.categoryOtp),
-    ('Addresses', Icons.location_on_rounded, AppColors.categoryAddress),
-    ('Notes', Icons.note_rounded, AppColors.categoryNotes),
-    ('Social Media', Icons.person_rounded, AppColors.categorySocial),
-    ('Other', Icons.folder_rounded, AppColors.categoryOther),
-  ];
+  static const Map<String, (IconData, Color)> _categoryVisuals = {
+    'Payments': (Icons.payments_rounded, AppColors.categoryPayments),
+    'UPI Receipts': (Icons.account_balance_rounded, AppColors.categoryUpi),
+    'Shopping': (Icons.shopping_bag_rounded, AppColors.categoryShopping),
+    'Travel Tickets': (Icons.flight_rounded, AppColors.categoryTravel),
+    'Bills': (Icons.receipt_long_rounded, AppColors.categoryBills),
+    'Documents': (Icons.description_rounded, AppColors.categoryDocuments),
+    'OTP Screenshots': (Icons.sms_rounded, AppColors.categoryOtp),
+    'Addresses': (Icons.location_on_rounded, AppColors.categoryAddress),
+    'Notes': (Icons.note_rounded, AppColors.categoryNotes),
+    'Social Media': (Icons.person_rounded, AppColors.categorySocial),
+    'Other': (Icons.folder_rounded, AppColors.categoryOther),
+  };
+
+  /// Visuals for any category label; categories outside the canonical
+  /// vocabulary still get a card instead of disappearing from the UI.
+  static (IconData, Color) _visualsFor(String name) =>
+      _categoryVisuals[name] ?? (Icons.folder_rounded, AppColors.categoryOther);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +59,11 @@ class CategoriesScreen extends ConsumerWidget {
                   'Scan your screenshots and they will be grouped here automatically',
             );
           }
+          // Render in the provider's deterministic order (count desc, then
+          // canonical vocabulary, then alphabetical), keeping zero-count
+          // canonical categories on screen and surfacing unknown labels.
+          final ordered = orderCategoryCounts(counts, includeEmpty: true);
+          final entries = ordered.entries.toList();
           return GridView.builder(
             padding: const EdgeInsets.all(SBSpacing.lg),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -62,10 +72,11 @@ class CategoriesScreen extends ConsumerWidget {
               mainAxisSpacing: SBSpacing.md,
               childAspectRatio: 1.3,
             ),
-            itemCount: _categories.length,
+            itemCount: entries.length,
             itemBuilder: (context, index) {
-              final (name, icon, color) = _categories[index];
-              final count = counts[name] ?? 0;
+              final name = entries[index].key;
+              final count = entries[index].value;
+              final (icon, color) = _visualsFor(name);
               return _CategoryCard(
                 name: name,
                 icon: icon,

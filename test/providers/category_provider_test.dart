@@ -74,4 +74,52 @@ void main() {
       expect(a.keys.toList(), b.keys.toList());
     });
   });
+
+  group('uncategorized bucketing (count vs query symmetry)', () {
+    test('uncategorized rows are bucketed under Other when counting', () {
+      expect(effectiveCategoryOf(null), 'Other');
+      expect(effectiveCategoryOf('Bills'), 'Bills');
+    });
+
+    test('countByBucket folds every uncategorized row into the Other badge',
+        () {
+      final counts = countByBucket([null, 'Other', 'Bills', null]);
+      expect(counts, {'Other': 3, 'Bills': 1});
+    });
+
+    test('the Other listing must include uncategorized rows, others must not',
+        () {
+      // categoryCountsProvider promises uncategorized rows in the Other
+      // badge; if the Other query drops them the card shows N screenshots
+      // but the screen opens with fewer (or none at all).
+      expect(bucketQueryIncludesNulls('Other'), isTrue);
+      expect(bucketQueryIncludesNulls('Bills'), isFalse);
+    });
+
+    test('membership predicate mirrors the query semantics for every bucket',
+        () {
+      for (final bucket in kCategoryList) {
+        for (final stored in <String?>[null, ...kCategoryList]) {
+          final returnedByQuery =
+              stored == bucket || (stored == null && bucketQueryIncludesNulls(bucket));
+          expect(
+            returnedByQuery,
+            equals(screenshotMatchesBucket(stored, bucket)),
+            reason: 'row($stored) counted in bucket($bucket) but not '
+                'returned by its query (or the reverse)',
+          );
+        }
+      }
+    });
+
+    test('a category whose only rows are uncategorized still resolves', () {
+      final stored = <String?>[null, null, 'Bills'];
+      final counts = countByBucket(stored);
+      expect(counts['Other'], 2);
+      expect(
+        stored.where((s) => screenshotMatchesBucket(s, 'Other')),
+        hasLength(2),
+      );
+    });
+  });
 }
