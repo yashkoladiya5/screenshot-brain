@@ -146,12 +146,15 @@ class ScreenshotScannerService {
               );
               continue;
             }
+            // When the media store reports no creation time, fall back to the
+            // timestamp encoded in the file name (screenshot formats carry it
+            // almost universally) so ordering is not arbitrary epoch-0.
+            final modified =
+                created ??
+                timestampFromFilename(asset.title ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
             discovered.add(
-              ScannedAsset(
-                id: asset.id,
-                path: file.path,
-                modified: created ?? DateTime.fromMillisecondsSinceEpoch(0),
-              ),
+              ScannedAsset(id: asset.id, path: file.path, modified: modified),
             );
           }
 
@@ -183,24 +186,275 @@ class ScreenshotScannerService {
   // Pure helpers — no plugins, no filesystem, fully unit-testable.
   // --------------------------------------------------------------------------
 
+  /// Lower-cased name fragments that mark a file/album as screenshot material
+  /// across the locales this app ships in (AOSP localises the default
+  /// screenshot file name, iOS/macOS use "Screen Shot", OEM galleries use
+  /// singular/plural "Screenshot(s)" folders).
+  static const List<String> screenshotHintTokens = [
+    'screenshot', // Android OEMs, English
+    'screen shot', // iOS Simulator / macOS
+    '截图', // zh-CN
+    '截圖', // zh-TW (also matches 螢幕截圖)
+    'スクリーンショット', // ja-JP
+    '스크린샷', // ko-KR
+    'bildschirmfoto', // de-DE
+    'capture d’écran', // fr-FR (typographic apostrophe)
+    "capture d'ecran", // fr-FR (ASCII apostrophe)
+    'captura de pantalla', // es-ES / es-419
+    'captura de tela', // pt-BR / pt-PT
+    'снимок экрана', // ru-RU
+  ];
+
+  /// English month names mapped to month numbers, used by the filename
+  /// timestamp parser (screenshot file names carry English month names in
+  /// practice; localised ones are matched as screenshot hints instead).
+  ///
+  /// Insertion order matters when building the regex: full names are listed
+  /// before their abbreviations so "December" can never be consumed as "Dec".
+  static const Map<String, int> _monthNames = {
+    'january': 1,
+    'february': 2,
+    'march': 3,
+    'april': 4,
+    'may': 5,
+    'june': 6,
+    'july': 7,
+    'august': 8,
+    'september': 9,
+    'october': 10,
+    'november': 11,
+    'december': 12,
+    'jan': 1,
+    'feb': 2,
+    'mar': 3,
+    'apr': 4,
+    'jun': 6,
+    'jul': 7,
+    'aug': 8,
+    'sep': 9,
+    'oct': 10,
+    'nov': 11,
+    'dec': 12,
+  };
+
+  static final RegExp _monthNameBeforeDay = RegExp(
+    '\\b(${_monthNames.keys.toList().join('|')})'
+    r'\.?[, ]?(\d{1,2})(?:st|nd|rd|th)?[, ]+((?:19|20)\d{2})(?!\d)',
+  );
+
+  static final RegExp _dayBeforeMonthName = RegExp(
+    r'(?<!\d)(\d{1,2})(?:st|nd|rd|th)?[ ,]('
+    '${_monthNames.keys.toList().join('|')})'
+    r'\.?[, ]+((?:19|20)\d{2})(?!\d)',
+  );
+
+  static final RegExp _compactDate = RegExp(
+    r'(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?:[-_](\d{2})(\d{2})(\d{2}))?(?!\d)',
+  );
+
+  static final RegExp _isoDate = RegExp(
+    r'(?<!\d)((?:19|20)\d{2})[-./](\d{1,2})[-./](\d{1,2})(?!\d)'
+    r'(?:\s*(?:at\s+)?(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?)?',
+  );
+
+  static const Set<String> _imageExtensions = {
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'heic',
+    'heif',
+    'gif',
+    'bmp',
+    'tif',
+    'tiff',
+  };
+
+  static bool _hasScreenshotHint(String lowerCased) =>
+      screenshotHintTokens.any(lowerCased.contains);
+
   /// True when an album name or relative path marks it as a screenshots album.
   static bool isScreenshotAlbumName(
     String albumName, {
     String relativePath = '',
   }) {
-    final name = albumName.toLowerCase();
-    final relPath = relativePath.toLowerCase();
-    return name.contains('screenshot') ||
-        relPath.contains('screenshot') ||
-        relPath.contains('dcim/screenshots') ||
-        relPath.contains('pictures/screenshots');
+    return _hasScreenshotHint(albumName.toLowerCase()) ||
+        _hasScreenshotHint(relativePath.toLowerCase());
   }
 
   /// True when an asset's title or relative path looks like a screenshot.
+  ///
+  /// A title match must also pass the image-extension gate (a missing
+  /// extension is accepted: iOS display titles sometimes omit it and the
+  /// assets fed here already come from an image-only query), so plain text
+  /// files that merely contain the word "screenshot" are not indexed.
   static bool looksLikeScreenshot(String title, String relativePath) {
     final t = title.toLowerCase();
-    final rp = relativePath.toLowerCase();
-    return t.contains('screenshot') || rp.contains('screenshots');
+    if (_hasScreenshotHint(t) && hasImageExtension(title)) return true;
+    return _hasScreenshotHint(relativePath.toLowerCase());
+  }
+
+  /// Lower-cased extension (without the dot) of the trailing name component,
+  /// or '' when there is none. Uses the LAST dot of the basename, so dotted
+  /// names ('a.b.c.heic'), hidden files ('.hidden.png') and paths with
+  /// multiple dots are handled — splitting on '.' and taking the last token
+  /// would not be, because it ignores path separators.
+  static String extensionOf(String name) {
+    final basename = name.split(RegExp(r'[/\\]')).last;
+    final dot = basename.lastIndexOf('.');
+    if (dot < 0) return '';
+    return basename.substring(dot + 1).toLowerCase();
+  }
+
+  /// True when [name] has a known image extension or no extension at all
+  /// (unknown is treated as image, since callers filter by image type first).
+  static bool hasImageExtension(String name) {
+    final ext = extensionOf(name);
+    return ext.isEmpty || _imageExtensions.contains(ext);
+  }
+
+  /// Case-insensitive, backslash-normalised identity key for a device path.
+  ///
+  /// The storages this app scans (Android volumes, iOS, case-insensitive
+  /// APFS) treat case variants as the same file; keying dedupe on the raw
+  /// path caused the same screenshot to be indexed twice under paths like
+  /// '/p/A.png' and '/p/a.png'.
+  static String pathDedupeKey(String path) =>
+      path.trim().replaceAll('\\', '/').toLowerCase();
+
+  /// Natural (numeric-aware) string comparison: 'IMG_9.png' sorts BEFORE
+  /// 'IMG_10.png', unlike plain lexicographic comparison. Case-insensitive;
+  /// digit runs are compared by value, leading zeros are insignificant.
+  static int compareNatural(String a, String b) {
+    final x = a.toLowerCase();
+    final y = b.toLowerCase();
+    var i = 0;
+    var j = 0;
+    while (i < x.length && j < y.length) {
+      final cx = x.codeUnitAt(i);
+      final cy = y.codeUnitAt(j);
+      final dx = _isDigit(cx);
+      final dy = _isDigit(cy);
+      if (dx && dy) {
+        var xe = i;
+        while (xe < x.length && _isDigit(x.codeUnitAt(xe))) {
+          xe++;
+        }
+        var ye = j;
+        while (ye < y.length && _isDigit(y.codeUnitAt(ye))) {
+          ye++;
+        }
+        final sx = _stripLeadingZeros(x.substring(i, xe));
+        final sy = _stripLeadingZeros(y.substring(j, ye));
+        if (sx.length != sy.length) return sx.length - sy.length;
+        final cmp = sx.compareTo(sy);
+        if (cmp != 0) return cmp;
+        i = xe;
+        j = ye;
+      } else {
+        if (cx != cy) return cx - cy;
+        i++;
+        j++;
+      }
+    }
+    final restX = x.length - i;
+    final restY = y.length - j;
+    return restX - restY;
+  }
+
+  static bool _isDigit(int codeUnit) => codeUnit >= 0x30 && codeUnit <= 0x39;
+
+  static String _stripLeadingZeros(String digits) {
+    var start = 0;
+    while (start < digits.length - 1 && digits.codeUnitAt(start) == 0x30) {
+      start++;
+    }
+    return digits.substring(start);
+  }
+
+  /// Extracts the capture timestamp encoded in a screenshot file name, or
+  /// null when the name carries none / carries an impossible date.
+  ///
+  /// Supported: compact 'Screenshot_20240101-120000' (Android OEMs),
+  /// ISO '2024-01-31[ at 12.00.00 / 07:05:09]' (iOS/macOS), and English
+  /// month-name dates in either order ('Dec 31 2024', '5 January 2024').
+  /// Month 13, day 32, non-leap Feb 29 etc. are rejected rather than
+  /// silently rolled over into a garbage date. Month-name alternatives list
+  /// full names before abbreviations so 'December' is never consumed as 'Dec'.
+  static DateTime? timestampFromFilename(String name) {
+    if (name.isEmpty) return null;
+    final lower = name.toLowerCase();
+
+    final compact = _compactDate.firstMatch(lower);
+    if (compact != null) {
+      return _validated(
+        int.parse(compact.group(1)!),
+        int.parse(compact.group(2)!),
+        int.parse(compact.group(3)!),
+        hour: compact.group(4) == null ? 0 : int.parse(compact.group(4)!),
+        minute: compact.group(5) == null ? 0 : int.parse(compact.group(5)!),
+        second: compact.group(6) == null ? 0 : int.parse(compact.group(6)!),
+      );
+    }
+
+    final iso = _isoDate.firstMatch(lower);
+    if (iso != null) {
+      return _validated(
+        int.parse(iso.group(1)!),
+        int.parse(iso.group(2)!),
+        int.parse(iso.group(3)!),
+        hour: iso.group(4) == null ? 0 : int.parse(iso.group(4)!),
+        minute: iso.group(5) == null ? 0 : int.parse(iso.group(5)!),
+        second: iso.group(6) == null ? 0 : int.parse(iso.group(6)!),
+      );
+    }
+
+    final monthFirst = _monthNameBeforeDay.firstMatch(lower);
+    if (monthFirst != null) {
+      final month = _monthNames[monthFirst.group(1)!.substring(0, 3)];
+      if (month != null) {
+        return _validated(
+          int.parse(monthFirst.group(3)!),
+          month,
+          int.parse(monthFirst.group(2)!),
+        );
+      }
+      return null;
+    }
+
+    final dayFirst = _dayBeforeMonthName.firstMatch(lower);
+    if (dayFirst != null) {
+      final month = _monthNames[dayFirst.group(2)!.substring(0, 3)];
+      if (month != null) {
+        return _validated(
+          int.parse(dayFirst.group(3)!),
+          month,
+          int.parse(dayFirst.group(1)!),
+        );
+      }
+    }
+    return null;
+  }
+
+  static DateTime? _validated(
+    int year,
+    int month,
+    int day, {
+    int hour = 0,
+    int minute = 0,
+    int second = 0,
+  }) {
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > _daysInMonth(year, month)) return null;
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    return DateTime(year, month, day, hour, minute, second);
+  }
+
+  static int _daysInMonth(int year, int month) {
+    const common = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (month != 2) return common[month - 1];
+    final isLeap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    return isLeap ? 29 : 28;
   }
 
   /// Half-open-safe window check: [notBefore] <= value <= [notAfter].
@@ -231,23 +485,33 @@ class ScreenshotScannerService {
         .toList(growable: false);
   }
 
-  /// Returns assets that are not already known, deduplicated by id and path,
-  /// sorted newest-modified first.
+  /// Returns assets that are not already known, deduplicated by id and by
+  /// case-insensitive path identity ([pathDedupeKey]), sorted newest-modified
+  /// first. Equal timestamps are ordered by natural path comparison so the
+  /// result never depends on the album enumeration order.
   static List<ScannedAsset> selectNewAssets({
     required Iterable<ScannedAsset> assets,
     required Set<String> knownPaths,
   }) {
+    final knownKeys = knownPaths.map(pathDedupeKey).toSet();
     final seenIds = <String>{};
-    final byPath = <String, ScannedAsset>{};
+    final byPathKey = <String, ScannedAsset>{};
     for (final asset in assets) {
       if (!seenIds.add(asset.id)) continue;
-      if (knownPaths.contains(asset.path)) continue;
+      final key = pathDedupeKey(asset.path);
+      if (knownKeys.contains(key)) continue;
       // First occurrence of a path wins; identical paths from different asset
       // ids (e.g. duplicates across albums) are collapsed.
-      byPath.putIfAbsent(asset.path, () => asset);
+      byPathKey.putIfAbsent(key, () => asset);
     }
-    final result = byPath.values.toList()
-      ..sort((a, b) => b.modified.compareTo(a.modified));
+    final result = byPathKey.values.toList()
+      ..sort((a, b) {
+        final byTime = b.modified.compareTo(a.modified);
+        if (byTime != 0) return byTime;
+        final byName = compareNatural(a.path, b.path);
+        if (byName != 0) return byName;
+        return a.path.compareTo(b.path);
+      });
     return result;
   }
 
