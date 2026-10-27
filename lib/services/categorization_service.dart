@@ -4,6 +4,8 @@
 /// Matching is deliberately conservative:
 /// * text is tokenized on case-insensitive word boundaries, so `order` never
 ///   matches inside `border` and `bill` never matches inside `billion`;
+///   apostrophe residue from OCR (`'otp'`, `amazon's`, `users'`) is stripped
+///   from token edges so quoted/possessive keywords still match;
 /// * every keyword carries a weight (specific brands/phrases score higher
 ///   than generic words) and multi-word phrases must match as a consecutive
 ///   token sequence;
@@ -171,9 +173,15 @@ class CategorizationService {
     'paid to': 3,
   };
 
+  /// Currency symbols/codes accepted on either side of the amount. Kept as a
+  /// single shared alternation so symbol-before-amount and amount-after-symbol
+  /// can never drift apart (the trailing side previously lost `₨`).
+  static const String _currencySymbols =
+      r'₹|₨|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP';
+
   /// Currency + digits (either order) is a strong structural expense signal.
   static final RegExp _currencyAmountRe = RegExp(
-    r'(?:₹|₨|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP)\s*\d|\d[\d.,]*\s*(?:₹|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP)',
+    '(?:$_currencySymbols)\\s*\\d|\\d[\\d.,]*\\s*(?:$_currencySymbols)',
     caseSensitive: false,
   );
 
@@ -181,11 +189,36 @@ class CategorizationService {
 
   /// Case-insensitive, word-boundary-safe tokenizer.
   /// Tokens keep letters, digits and apostrophes (`don't` -> `don't`).
+  /// Apostrophe residue that OCR glues onto word edges is stripped so quoted
+  /// or possessive keywords still match (`'otp'` -> `otp`, `amazon's` ->
+  /// `amazon`, `users'` -> `users`).
   static List<String> tokenize(String text) {
-    return RegExp(
+    final matches = RegExp(
       r"[\p{L}\p{N}']+",
       unicode: true,
-    ).allMatches(text.toLowerCase()).map((m) => m[0]!).toList();
+    ).allMatches(text.toLowerCase());
+    final tokens = <String>[];
+    for (final match in matches) {
+      final token = _stripEdgeApostrophes(match[0]!);
+      if (token.isNotEmpty) tokens.add(token);
+    }
+    return tokens;
+  }
+
+  /// Strips leading/trailing apostrophes and a possessive `'s` tail while
+  /// preserving interior apostrophes of contractions (`don't` stays `don't`).
+  static String _stripEdgeApostrophes(String token) {
+    var t = token;
+    while (t.startsWith("'")) {
+      t = t.substring(1);
+    }
+    while (t.endsWith("'")) {
+      t = t.substring(0, t.length - 1);
+    }
+    if (t.endsWith("'s")) {
+      t = t.substring(0, t.length - 2);
+    }
+    return t;
   }
 
   /// Weighted score of [keywords] against [text].
@@ -227,7 +260,10 @@ class CategorizationService {
   }
 
   /// Highest-scoring category among [table], or [fallback] when nothing
-  /// clears [threshold]. Ties resolve via [priority] order (earlier wins).
+  /// clears [threshold]. Ties resolve via [priority] order (earlier wins);
+  /// categories present in [table] but absent from [priority] are still
+  /// scored (below all ranked categories, in deterministic alphabetical
+  /// order among themselves) instead of being silently ignored.
   static String scoreCategories(
     String text,
     Map<String, Map<String, int>> table,
@@ -236,12 +272,13 @@ class CategorizationService {
     String fallback = 'Other',
   }) {
     if (text.trim().isEmpty) return fallback;
+    final ranked = priority.where(table.containsKey).toSet();
+    final unranked = table.keys.where((c) => !ranked.contains(c)).toList()
+      ..sort();
     String? best;
     var bestScore = 0;
-    for (final category in priority) {
-      final keywords = table[category];
-      if (keywords == null) continue;
-      final score = weightedScore(text, keywords);
+    for (final category in [...ranked, ...unranked]) {
+      final score = weightedScore(text, table[category]!);
       if (score > bestScore) {
         bestScore = score;
         best = category;

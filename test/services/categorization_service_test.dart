@@ -103,6 +103,85 @@ void main() {
         'Shopping',
       );
     });
+
+    test('possessive and quote-marked keywords still match', () {
+      // OCR routinely attaches straight apostrophes to words (possessives,
+      // quote residue); they must not break whole-token keyword matching.
+      expect(
+        CategorizationService.categorize("Instagram's new post"),
+        'Social Media',
+      );
+      expect(CategorizationService.categorize("Flipkart's sale"), 'Shopping');
+      expect(
+        CategorizationService.categorize("Enter the 'OTP' shared with you"),
+        'OTP Screenshots',
+      );
+    });
+  });
+
+  group('tokenize', () {
+    test('strips leading/trailing apostrophes and possessive endings', () {
+      expect(CategorizationService.tokenize("'paid to' users' amazon's"), [
+        'paid',
+        'to',
+        'users',
+        'amazon',
+      ]);
+      // A lone quoted token must not survive as a bare apostrophe remnant.
+      expect(CategorizationService.tokenize("' ' ''"), isEmpty);
+    });
+
+    test('keeps interior apostrophes in contractions', () {
+      expect(CategorizationService.tokenize("don't"), ["don't"]);
+    });
+  });
+
+  group('scoreCategories', () {
+    test('scores table categories missing from the priority list', () {
+      // The documented contract is "highest-scoring category among [table]":
+      // a category absent from [priority] must still be considered, not
+      // silently dropped to the fallback bucket.
+      const table = {
+        'Alpha': {'waldo': 9},
+        'Beta': {'zorp': 9},
+      };
+      expect(
+        CategorizationService.scoreCategories('waldo', table, const ['Beta']),
+        'Alpha',
+      );
+      // A priority category still wins an exact tie over an unranked one.
+      expect(
+        CategorizationService.scoreCategories('waldo zorp', table, const [
+          'Beta',
+        ]),
+        'Beta',
+      );
+    });
+
+    test('unranked categories tie-break deterministically (alphabetical)', () {
+      const table = {
+        'Zulu': {'alpha': 5},
+        'Alpha': {'alpha': 5},
+      };
+      expect(
+        CategorizationService.scoreCategories('alpha', table, const []),
+        'Alpha',
+      );
+    });
+
+    test('priority entries not present in the table are ignored safely', () {
+      const table = {
+        'Alpha': {'waldo': 9},
+      };
+      expect(
+        CategorizationService.scoreCategories('waldo', table, const ['Nope']),
+        'Alpha',
+      );
+      expect(
+        CategorizationService.scoreCategories('nothing', table, const ['Nope']),
+        'Other',
+      );
+    });
   });
 
   group('isExpense', () {
@@ -123,6 +202,11 @@ void main() {
     test('currency-tagged amounts count as structural cues', () {
       expect(CategorizationService.isExpense('₹500 paid'), isTrue);
       expect(CategorizationService.isExpense('150.00 EUR payment'), isTrue);
+      // The symbol must work on both sides of the amount for every currency;
+      // "500 ₨" (trailing Nepali rupee) was silently unrecognized.
+      expect(CategorizationService.isExpense('paid 500 ₨ to Sita'), isTrue);
+      expect(CategorizationService.isExpense('₨500 paid to Sita'), isTrue);
+      expect(CategorizationService.isExpense('paid 250 € to Sita'), isTrue);
     });
 
     test('false for non-payment text', () {
