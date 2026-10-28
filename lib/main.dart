@@ -34,8 +34,11 @@ Future<void> _bootstrap() async {
 
   // 4. Initialize the database service. A failure here is reported but does
   //    not block runApp — the UI surfaces its own error states downstream.
+  //    The timeout bounds the wait: a hung native open must not keep the app
+  //    from ever rendering; the open continues in the background and the
+  //    scan path re-checks `DatabaseService.isInitialized` on every call.
   try {
-    await DatabaseService.init();
+    await DatabaseService.init().timeout(_databaseInitTimeout);
   } catch (error, stack) {
     FlutterError.reportError(
       FlutterErrorDetails(
@@ -46,9 +49,22 @@ Future<void> _bootstrap() async {
     );
   }
 
-  // 5. Run the application.
-  runApp(const ProviderScope(child: ScreenshotBrainApp()));
+  // 5. Build the startup provider overrides — a real, disk-backed settings
+  //    store behind the SettingsPersistence seam. This only resolves a path;
+  //    it never reads the file synchronously, and it degrades to the
+  //    in-memory default store (empty override list) on any failure.
+  final overrides = await buildStartupOverrides();
+
+  // 6. Run the application. Cold start and hot restart both come through
+  //    this function, so the same overrides apply to every ProviderScope.
+  runApp(
+    ProviderScope(overrides: overrides, child: const ScreenshotBrainApp()),
+  );
 }
+
+/// How long the first frame may wait on the Isar open before the app renders
+/// anyway. Generous: a healthy local open is milliseconds.
+const Duration _databaseInitTimeout = Duration(seconds: 10);
 
 void _reportUncaughtError(Object error, StackTrace stack) {
   debugPrint('Screenshot Brain: uncaught error -> $error');
