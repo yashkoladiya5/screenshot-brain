@@ -47,19 +47,25 @@ class ScreenshotViewerScreen extends ConsumerWidget {
 
   /// Shared error surface tuned for the dark viewer: retry re-runs the
   /// watched query; close leaves the viewer.
+  ///
+  /// The exception detail goes to the console, not on screen — a raw
+  /// `error.toString()` here used to render Isar/Riverpod stack traces with
+  /// file paths to the user.
   Widget _errorView(
     BuildContext context,
     WidgetRef ref, {
     required Object error,
+    required StackTrace stack,
     required VoidCallback retry,
   }) {
+    debugPrint('[ScreenshotViewer] Could not load view: $error\n$stack');
     return Column(
       children: [
         const _ViewerCloseButton(),
         Expanded(
           child: AppErrorWidget(
             title: 'Could not load this screenshot',
-            message: error.toString(),
+            message: "We couldn't load this screenshot. Please try again.",
             icon: Icons.broken_image_rounded,
             onRetry: retry,
           ),
@@ -82,10 +88,11 @@ class ScreenshotViewerScreen extends ConsumerWidget {
   ) {
     return galleryAsync.when(
       loading: () => const LoadingWidget(),
-      error: (error, _) => _errorView(
+      error: (error, stack) => _errorView(
         context,
         ref,
         error: error,
+        stack: stack,
         retry: () =>
             ref.invalidate(screenshotsByCategoryProvider(categoryName!)),
       ),
@@ -120,10 +127,11 @@ class ScreenshotViewerScreen extends ConsumerWidget {
   ) {
     return singleAsync.when(
       loading: () => const LoadingWidget(),
-      error: (error, _) => _errorView(
+      error: (error, stack) => _errorView(
         context,
         ref,
         error: error,
+        stack: stack,
         retry: () => ref.invalidate(screenshotDetailProvider(_parsedId)),
       ),
       data: (screenshot) {
@@ -166,16 +174,43 @@ class _ViewerCloseButton extends StatelessWidget {
 
 /// Overlay action row (share / delete) shared by the single and gallery
 /// viewer modes; both call the same provider-backed mutations.
-class _ViewerActions extends ConsumerWidget {
+class _ViewerActions extends ConsumerStatefulWidget {
   final ScreenshotItem item;
   final VoidCallback? onDeleted;
 
   const _ViewerActions({required this.item, this.onDeleted});
 
-  Future<void> _share(WidgetRef ref) =>
-      Share.shareXFiles([XFile(item.filePath)], text: item.extractedText ?? '');
+  @override
+  ConsumerState<_ViewerActions> createState() => _ViewerActionsState();
+}
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+class _ViewerActionsState extends ConsumerState<_ViewerActions> {
+  /// True while a delete confirmation or delete mutation is in flight.
+  ///
+  /// Without it a second tap on "Delete" opened a second dialog; confirming
+  /// that one popped the already-popped route, and the resulting
+  /// GoError('There is nothing to pop') surfaced as a bogus "Delete failed"
+  /// snackbar on the screen the user had just landed on.
+  bool _deleteRequested = false;
+
+  ScreenshotItem get _item => widget.item;
+
+  @override
+  void didUpdateWidget(covariant _ViewerActions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // In gallery mode this row is reused as the pager swipes; a delete that
+    // finished (or failed) on the previous screenshot must not leave the
+    // button disabled for the newly current one.
+    if (oldWidget.item.id != widget.item.id) _deleteRequested = false;
+  }
+
+  Future<void> _share() => Share.shareXFiles([
+    XFile(_item.filePath),
+  ], text: _item.extractedText ?? '');
+
+  Future<void> _confirmDelete() async {
+    if (_deleteRequested) return;
+    _deleteRequested = true;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -197,28 +232,36 @@ class _ViewerActions extends ConsumerWidget {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      _deleteRequested = false;
+      return;
+    }
     try {
       // Provider performs the DB delete and invalidates list/home itself.
-      await ref.read(deleteScreenshotProvider(item.id).future);
-      onDeleted?.call();
+      await ref.read(deleteScreenshotProvider(_item.id).future);
     } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $error')));
+      _deleteRequested = false;
+      debugPrint('[ScreenshotViewer] Delete failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete this screenshot.')),
+      );
+      return;
     }
+    if (!mounted) return;
+    _deleteRequested = false;
+    widget.onDeleted?.call();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
           icon: const Icon(Icons.share_rounded, color: Colors.white, size: 26),
           tooltip: 'Share',
-          onPressed: () => _share(ref),
+          onPressed: _share,
         ),
         IconButton(
           icon: const Icon(
@@ -227,7 +270,7 @@ class _ViewerActions extends ConsumerWidget {
             size: 26,
           ),
           tooltip: 'Delete',
-          onPressed: () => _confirmDelete(context, ref),
+          onPressed: _confirmDelete,
         ),
       ],
     );
@@ -279,21 +322,23 @@ class _GalleryPagerState extends ConsumerState<_GalleryPager> {
   void _onCurrentDeleted(int deletedId) {
     final index = _items.indexWhere((s) => s.id == deletedId);
     if (index < 0) return;
+    _items.removeAt(index);
+    if (_items.isEmpty) {
+      // Pop outside setState and leave the list empty: rebuilding through
+      // setState here used to index _items[_currentIndex] on the way out and
+      // throw RangeError during the exit animation.
+      context.pop();
+      return;
+    }
     setState(() {
-      _items.removeAt(index);
-      if (_items.isEmpty) {
-        context.pop();
-        return;
-      }
       _currentIndex = index.clamp(0, _items.length - 1);
     });
-    if (_items.isNotEmpty) {
-      _pageController.jumpToPage(_currentIndex);
-    }
+    _pageController.jumpToPage(_currentIndex);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_items.isEmpty) return const SizedBox.shrink();
     final current = _items[_currentIndex];
     return Stack(
       fit: StackFit.expand,
