@@ -106,6 +106,26 @@ class PermissionService {
     }
   }
 
+  /// Pure tie-break for Android when BOTH permission axes are blocked.
+  ///
+  /// If either axis is permanently denied the combined state must be
+  /// `permanentlyDenied`: reporting a retryable `denied` (which the raw
+  /// photos status alone would suggest on API < 33, where photos is stuck
+  /// at `denied` while storage was denied forever) makes the app re-fire a
+  /// request that can never surface a dialog — the exact double-prompt loop
+  /// the state machine promises to prevent. Otherwise the photos state is
+  /// kept: it is the axis the user sees and the request path targets first.
+  static GalleryPermissionStatus resolveBlockedGalleryStatus(
+    GalleryPermissionStatus photos,
+    GalleryPermissionStatus storage,
+  ) {
+    if (photos == GalleryPermissionStatus.permanentlyDenied ||
+        storage == GalleryPermissionStatus.permanentlyDenied) {
+      return GalleryPermissionStatus.permanentlyDenied;
+    }
+    return photos;
+  }
+
   /// Checks the current gallery access WITHOUT triggering a system dialog.
   static Future<GalleryPermissionResult> checkGalleryPermission() async {
     _debug('checkGalleryPermission() called');
@@ -151,10 +171,9 @@ class PermissionService {
       if (GalleryPermissionResult(storageStatus).canReadPhotos) {
         return GalleryPermissionResult(storageStatus);
       }
-      // Keep the more actionable of the two states.
-      if (storageStatus == GalleryPermissionStatus.permanentlyDenied) {
-        status = storageStatus;
-      }
+      // Keep the more actionable of the two states (same tie-break the
+      // check path uses when both axes end up blocked).
+      status = resolveBlockedGalleryStatus(status, storageStatus);
     }
 
     return GalleryPermissionResult(status);
@@ -223,8 +242,10 @@ class PermissionService {
     if (GalleryPermissionResult(storageStatus).canReadPhotos) {
       return storageStatus;
     }
-    // Preserve the more informative photos state when both are blocked.
-    return status;
+    // Both blocked: a permanently-denied storage axis must override the
+    // stuck-at-denied photos axis, or the check reports a retryable state
+    // forever (same promotion the request path applies).
+    return resolveBlockedGalleryStatus(status, storageStatus);
   }
 
   static Future<bool> openSettings() async {

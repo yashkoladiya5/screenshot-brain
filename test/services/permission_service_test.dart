@@ -122,6 +122,65 @@ void main() {
     });
   });
 
+  group('resolveBlockedGalleryStatus (both axes blocked tie-break)', () {
+    // The check path used to always keep the photos state when both axes
+    // were blocked, so `photos=denied + storage=permanentlyDenied` (the
+    // normal Android API < 33 shape) was reported as retryable `denied`.
+    // The app then re-fired a request loop the state machine promises to
+    // prevent. The request path already promoted; both paths must agree.
+    test('storage-side permanent denial wins over retryable denied', () {
+      expect(
+        PermissionService.resolveBlockedGalleryStatus(
+          GalleryPermissionStatus.denied,
+          GalleryPermissionStatus.permanentlyDenied,
+        ),
+        GalleryPermissionStatus.permanentlyDenied,
+      );
+    });
+
+    test('photos-side permanent denial is never downgraded', () {
+      expect(
+        PermissionService.resolveBlockedGalleryStatus(
+          GalleryPermissionStatus.permanentlyDenied,
+          GalleryPermissionStatus.denied,
+        ),
+        GalleryPermissionStatus.permanentlyDenied,
+      );
+    });
+
+    test('keeps the photos state when neither axis is permanently denied', () {
+      expect(
+        PermissionService.resolveBlockedGalleryStatus(
+          GalleryPermissionStatus.denied,
+          GalleryPermissionStatus.denied,
+        ),
+        GalleryPermissionStatus.denied,
+      );
+      expect(
+        PermissionService.resolveBlockedGalleryStatus(
+          GalleryPermissionStatus.restricted,
+          GalleryPermissionStatus.denied,
+        ),
+        GalleryPermissionStatus.restricted,
+      );
+    });
+
+    test('the promoted state is not retryable (double-prompt guard)', () {
+      const promoted = GalleryPermissionResult(
+        GalleryPermissionStatus.permanentlyDenied,
+      );
+      expect(
+        PermissionService.resolveBlockedGalleryStatus(
+          GalleryPermissionStatus.denied,
+          GalleryPermissionStatus.permanentlyDenied,
+        ),
+        promoted.status,
+      );
+      expect(promoted.canRetryRequest, isFalse);
+      expect(promoted.shouldOpenSettings, isTrue);
+    });
+  });
+
   group('purposeExplanationFor', () {
     test('every state produces a non-empty explanation mentioning the app '
         'purpose', () {
