@@ -106,8 +106,16 @@ class DateUtils {
   /// Number of days in [month] (1-12) of [year], honoring leap years.
   /// Month 12 is handled naturally: `DateTime(year, 13)` rolls to Jan of the
   /// next year, so "day 0 of next month" is always this month's last day.
+  /// DST-safe by construction: day 0 is normalized with calendar components
+  /// only. The previous implementation subtracted a real 24-hour `Duration`
+  /// from the next month's local midnight, and in zones whose DST transition
+  /// lands at midnight on a month's last day (e.g. Asia/Beirut 2024-03-31,
+  /// a 23-hour day) the subtraction skipped back a second day and reported
+  /// 30 days for March. That off-by-one flowed into [clampToMonthEnd] and
+  /// [addMonths], silently landing month arithmetic on the day before
+  /// month-end for users in those zones.
   static int daysInMonth(int year, int month) {
-    return DateTime(year, month + 1).subtract(const Duration(days: 1)).day;
+    return DateTime(year, month + 1, 0).day;
   }
 
   /// Clamps [date]'s day to the last valid day of its own month.

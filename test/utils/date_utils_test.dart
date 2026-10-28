@@ -163,6 +163,40 @@ void main() {
       expect(DateUtils.daysInMonth(2025, 4), 30);
     });
 
+    test('daysInMonth equals the civil Gregorian rule for every month', () {
+      // Regression: daysInMonth subtracted a real 24-hour Duration from the
+      // next month's local midnight. Where a DST transition lands at
+      // midnight on the last day of a month (Asia/Beirut 2024-03-31,
+      // Europe/Dublin 2024-03-31, Australia/Lord_Howe 2004-10-31, ...), the
+      // span is 23 hours and the subtraction landed on the day *before*
+      // month end — March reported 30 days, and addMonths/clampToMonthEnd
+      // then clamped valid month-end dates one day early. Run the pre-fix
+      // code with TZ=Asia/Beirut to watch 2024-03 report 30.
+      int expected(int year, int month) {
+        const lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        if (month != 2) return lengths[month - 1];
+        final leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+        return leap ? 29 : 28;
+      }
+
+      for (var year = 1970; year <= 2035; year++) {
+        for (var month = 1; month <= 12; month++) {
+          expect(
+            DateUtils.daysInMonth(year, month),
+            expected(year, month),
+            reason: 'daysInMonth($year, $month)',
+          );
+        }
+      }
+    });
+
+    test('addMonths into a month whose end day is a midnight-DST day', () {
+      // Jan 31 + 2 months is March 31 in 2024. If March were mis-measured
+      // as 30 days (the pre-fix Duration bug), this clamped to March 30.
+      final res = DateUtils.addMonths(DateTime(2024, 1, 31), 2);
+      expectDate(res, 2024, 3, 31);
+    });
+
     test('Jan31 + 1 month clamps to Feb28 (non-leap)', () {
       final res = DateUtils.addMonths(DateTime.utc(2025, 1, 31), 1);
       expectDate(res, 2025, 2, 28);
