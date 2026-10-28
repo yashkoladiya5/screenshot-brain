@@ -159,8 +159,15 @@ class ExpenseItem {
       hasMerchant ? merchant!.trim() : 'Unknown merchant';
 
   /// Spend category, or 'Uncategorized' when the row predates categorization.
-  String get categoryDisplay =>
-      (category == null || category!.isEmpty) ? 'Uncategorized' : category!;
+  ///
+  /// Whitespace-only values fall back to the placeholder and padded values
+  /// are trimmed, matching how `AnalyticsService` buckets categories —
+  /// otherwise the same row shows a blank chip here but 'Uncategorized' on
+  /// the dashboard.
+  String get categoryDisplay {
+    final trimmed = (category ?? '').trim();
+    return trimmed.isEmpty ? 'Uncategorized' : trimmed;
+  }
 
   /// Free-text note, or an empty string when absent (never null, so callers
   /// can render it without a null check).

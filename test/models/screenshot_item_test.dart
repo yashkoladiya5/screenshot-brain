@@ -210,6 +210,21 @@ void main() {
       );
     });
 
+    test('category display trims whitespace-only and padded values', () {
+      // Same contract as ExpenseItem/AnalyticsService: blank categories must
+      // fall back to the placeholder instead of rendering an empty chip.
+      expect(
+        ScreenshotItem.fromModel(model(category: '   ')).categoryDisplay,
+        'Uncategorized',
+      );
+      expect(
+        ScreenshotItem.fromModel(
+          model(category: '  Travel Tickets '),
+        ).categoryDisplay,
+        'Travel Tickets',
+      );
+    });
+
     test(
       'text preview collapses whitespace, truncates, and stays null-safe',
       () {

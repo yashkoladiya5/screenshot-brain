@@ -167,6 +167,24 @@ void main() {
       expect(long.endsWith('…'), isTrue);
     });
 
+    test('category display trims, matching the analytics bucketing', () {
+      // A whitespace-only category used to render a blank chip even though
+      // AnalyticsService groups the same row under "Uncategorized", and
+      // padded categories were shown with their stray spaces.
+      expect(
+        ExpenseItem.fromModel(model(category: '   ')).categoryDisplay,
+        'Uncategorized',
+      );
+      expect(
+        ExpenseItem.fromModel(model(category: '\n ')).categoryDisplay,
+        'Uncategorized',
+      );
+      expect(
+        ExpenseItem.fromModel(model(category: '  Bills  ')).categoryDisplay,
+        'Bills',
+      );
+    });
+
     test('created timestamp renders relative to a pinned clock', () {
       final item = ExpenseItem.fromModel(
         model(createdAt: DateTime.utc(2025, 6, 18, 16, 30)),

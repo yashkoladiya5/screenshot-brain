@@ -111,8 +111,15 @@ class ScreenshotItem {
   String get statusLabel => status.label;
 
   /// Category, or a placeholder when the screenshot was never categorized.
-  String get categoryDisplay =>
-      (category == null || category!.isEmpty) ? 'Uncategorized' : category!;
+  ///
+  /// Whitespace-only values fall back to the placeholder and padded values
+  /// are trimmed, matching `ExpenseItem.categoryDisplay` and the
+  /// `AnalyticsService` bucketing so the same value never renders blank in
+  /// one place and 'Uncategorized' in another.
+  String get categoryDisplay {
+    final trimmed = (category ?? '').trim();
+    return trimmed.isEmpty ? 'Uncategorized' : trimmed;
+  }
 
   /// Lower-cased extension of [filePath] ('' when there is none).
   String get fileExtension => filePath.fileExtension;
