@@ -184,6 +184,47 @@ void main() {
     });
   });
 
+  group('inflected bank-alert word forms', () {
+    // Debit/credit alerts are the archetypal Payments screenshot, but the
+    // keywords only matched the base forms "debit"/"credit": "debited" and
+    // "credited" fell through to Other, and a bare debit alert was not
+    // flagged as an expense at all.
+    test('categorizes SMS-style debit and credit alerts as Payments', () {
+      expect(
+        CategorizationService.categorize(
+          'INR 1,200.00 has been debited from your account XX3456 on '
+          '12-01-2026. Available balance: Rs 4,500.00',
+        ),
+        'Payments',
+      );
+      expect(
+        CategorizationService.categorize(
+          'Rs 25,000.00 credited to your account XX9876 on 01-02-2026',
+        ),
+        'Payments',
+      );
+    });
+
+    test('a bare debit alert is detected as an expense', () {
+      expect(
+        CategorizationService.isExpense(
+          'Rs.1200 debited from your a/c XX3456 on 12/01/2026',
+        ),
+        isTrue,
+      );
+    });
+
+    test('inflected forms do not resurrect substring false positives', () {
+      // "debited" is accepted as a whole token, but "debitcard" or "credit"
+      // glued inside other words must still not match.
+      expect(CategorizationService.categorize('my debitcard wallet'), 'Other');
+      expect(
+        CategorizationService.isExpense('incredit loan marketing'),
+        isFalse,
+      );
+    });
+  });
+
   group('isExpense', () {
     test('false for empty text', () {
       expect(CategorizationService.isExpense(''), isFalse);

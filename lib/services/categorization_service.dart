@@ -21,7 +21,12 @@ class CategorizationService {
       'paid': 3,
       'transaction': 3,
       'debit': 3,
+      // Bank alerts use the past participle ("Rs 500 debited from your
+      // account"); whole-token matching means the base form alone never
+      // saw them, so every debit/credit alert landed in `Other`.
+      'debited': 3,
       'credit': 3,
+      'credited': 3,
       'bank': 3,
       'account': 2,
       'payment successful': 6,
@@ -159,6 +164,9 @@ class CategorizationService {
     'upi': 3,
     'transaction': 2,
     'debit': 2,
+    // Outgoing-money alerts say "debited", not "debit" (see above); the
+    // credit form is income and deliberately stays out of the expense cues.
+    'debited': 2,
     'credit': 2,
     'purchase': 3,
     'bill': 3,
