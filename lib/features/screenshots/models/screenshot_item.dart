@@ -1,3 +1,5 @@
+import '../../../core/utils/date_extensions.dart';
+
 class ScreenshotItem {
   final int id;
   final String filePath;
@@ -21,13 +23,28 @@ class ScreenshotItem {
     this.isExpense = false,
   });
 
-  String get categoryDisplay => category ?? 'Uncategorized';
+  /// Category, or the placeholder when never categorized.
+  ///
+  /// Trims first: a whitespace-only value used to render an empty badge here
+  /// while the analytics dashboard bucketed the same row as 'Uncategorized'.
+  String get categoryDisplay {
+    final trimmed = (category ?? '').trim();
+    return trimmed.isEmpty ? 'Uncategorized' : trimmed;
+  }
+
+  /// Whole calendar days before now, as 'Today' / 'Yesterday' / 'N days ago',
+  /// falling back to the numeric date past a week.
+  ///
+  /// Deliberately not `now.difference(createdAt).inDays`: that counts elapsed
+  /// 24-hour blocks, so a screenshot captured at 23:00 yesterday read as
+  /// 'Today' for most of today, and a six-day-old capture flipped to the
+  /// numeric date a day early. `dayOffsetFrom` from the shared date
+  /// extensions is midnight-normalized and DST-safe.
   String get dateDisplay {
-    final now = DateTime.now();
-    final diff = now.difference(createdAt);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    final daysAgo = -createdAt.dayOffsetFrom(DateTime.now());
+    if (daysAgo <= 0) return 'Today';
+    if (daysAgo == 1) return 'Yesterday';
+    if (daysAgo < 7) return '$daysAgo days ago';
     return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
   }
 }
