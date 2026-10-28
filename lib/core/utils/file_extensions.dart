@@ -17,6 +17,10 @@ const List<String> kAllowedImageExtensions = [
 extension FileSizeExtensions on int {
   /// Converts a file size in bytes to a human-readable string.
   /// Example: 1024 -> "1.0 KB"
+  ///
+  /// When the rounded display would reach the next unit — `1048575` bytes
+  /// is under 1 MB but renders as `1024.0 KB` at one decimal — the value is
+  /// promoted, so the string never shows a full 1024 of one suffix.
   String toReadableFileSize({int decimals = 1}) {
     if (this <= 0) return "0 B";
 
@@ -28,14 +32,24 @@ extension FileSizeExtensions on int {
       i = suffixes.length - 1;
     }
 
-    final size = this / pow(1024, i);
+    var size = this / pow(1024, i);
+
+    // Rounding up to 1024 at the chosen precision means the number belongs
+    // in the next unit (`1024.0 KB` -> `1.0 MB`). One promotion is enough:
+    // the resized value sits just above 1.0.
+    if (i < suffixes.length - 1 &&
+        double.parse(size.toStringAsFixed(decimals)) >= 1024) {
+      i += 1;
+      size = this / pow(1024, i);
+    }
 
     return '${size.toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 
   /// Compact Indian-app style size: binary thresholds but short suffixes,
   /// e.g. 1536 -> "1.5 K", 5 * 1024 * 1024 -> "5.0 M". Bytes below 1 KB
-  /// still render as "N B".
+  /// still render as "N B". Rounded values that would show `1024.0` promote
+  /// to the next suffix, same as [toReadableFileSize].
   String toReadableFileSizeCompact() {
     if (this <= 0) return "0 B";
 
@@ -43,7 +57,13 @@ extension FileSizeExtensions on int {
     var i = (log(this) / log(1024)).floor();
     if (i >= suffixes.length) i = suffixes.length - 1;
 
-    final size = this / pow(1024, i);
+    var size = this / pow(1024, i);
+    if (i < suffixes.length - 1 &&
+        double.parse(size.toStringAsFixed(1)) >= 1024) {
+      i += 1;
+      size = this / pow(1024, i);
+    }
+
     return '${size.toStringAsFixed(1)} ${suffixes[i]}';
   }
 }

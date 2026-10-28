@@ -18,7 +18,21 @@ void main() {
 
     test('decimals parameter and rounding', () {
       expect(1023.toReadableFileSize(), '1023.0 B');
-      expect((1024 * 1024 - 1).toReadableFileSize(decimals: 2), '1024.00 KB');
+      // Regression: 1048575 B is under 1 MiB but rounded to "1024.00 KB"
+      // (and 1048570 to "1024.0 KB"), a full 1024 of the smaller unit shown
+      // in the detail screen. Rounded values that reach 1024 promote to the
+      // next suffix.
+      expect((1024 * 1024 - 1).toReadableFileSize(decimals: 2), '1.00 MB');
+      expect((1024 * 1024 - 6).toReadableFileSize(), '1.0 MB');
+      expect((1024 * 1024 - 52).toReadableFileSize(), '1023.9 KB');
+      expect(1073741823.toReadableFileSize(), '1.0 GB');
+      expect(
+        (1024 * 1024 * 1024 - 1).toReadableFileSize(decimals: 2),
+        '1.00 GB',
+      );
+      // Promotion must not corrupt the plain cases.
+      expect((5 * 1024 * 1024).toReadableFileSize(), '5.0 MB');
+      expect((1 << 62).toReadableFileSize(), '4.0 EB');
     });
 
     test('huge sizes clamp to a suffix instead of crashing', () {
@@ -35,6 +49,9 @@ void main() {
       expect((2 * 1024 * 1024).toReadableFileSizeCompact(), '2.0 M');
       expect(900.toReadableFileSizeCompact(), '900.0 B');
       expect(0.toReadableFileSizeCompact(), '0 B');
+      // Same rounding promotion as toReadableFileSize: never "1024.0".
+      expect((1024 * 1024 - 6).toReadableFileSizeCompact(), '1.0 M');
+      expect((1024 * 1024 - 52).toReadableFileSizeCompact(), '1023.9 K');
     });
   });
 
