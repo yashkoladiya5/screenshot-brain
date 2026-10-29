@@ -1,5 +1,12 @@
 import 'package:intl/intl.dart';
 
+/// Money formats need an explicit locale: with none, intl follows the
+/// ambient Intl/system locale, so the same rupee amount silently switches
+/// between lakh grouping (`₹1,29,900`) and western grouping
+/// (`₹129,900`) per device — and throws LocaleDataException outright for
+/// locales whose data is never initialized (only `en_US` ships by default).
+const _moneyLocale = 'en_US';
+
 /// Formats [value] using Indian digit grouping: the last three digits form
 /// one group, then every two digits before it (e.g. `129900` -> `1,29,900`,
 /// `100000000` -> `10,00,00,000`).
@@ -8,8 +15,12 @@ import 'package:intl/intl.dart';
 /// A negative value renders the minus sign before the currency symbol.
 String formatIndianNumber(num value, {String symbol = '₹', int decimals = 0}) {
   assert(decimals >= 0 && decimals <= 15, 'decimals must be between 0 and 15');
-  final negative = value < 0;
-  final abs = value.abs();
+  // NaN/infinity leak in from OCR results and ratio math; `toStringAsFixed`
+  // throws on them, which crashed money labels. They render as zero.
+  final sanitized =
+      value is double && (value.isNaN || value.isInfinite) ? 0.0 : value;
+  final negative = sanitized < 0;
+  final abs = sanitized.abs();
   final String text;
   if (abs is int) {
     text = decimals > 0 ? '${abs.toString()}.${'0' * decimals}' : '$abs';
@@ -45,15 +56,20 @@ String _groupIndianDigits(String digits) {
 }
 
 extension NumExtensions on num {
-  /// Formats the number as currency (e.g., $1,234.56).
+  /// Formats the number as currency (e.g., $1,234.56). The grouping is
+  /// `en_US` unless callers outgrow the single app-wide money style.
   String toCurrency([String symbol = '\$']) {
-    final format = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
+    final format = NumberFormat.currency(
+      locale: _moneyLocale,
+      symbol: symbol,
+      decimalDigits: 2,
+    );
     return format.format(this);
   }
 
-  /// Formats the number as a compact string (e.g., 1.2k, 3M).
+  /// Formats the number to a compact string (e.g., 1.2k, 3M).
   String toCompact() {
-    final format = NumberFormat.compact();
+    final format = NumberFormat.compact(locale: _moneyLocale);
     return format.format(this);
   }
 
