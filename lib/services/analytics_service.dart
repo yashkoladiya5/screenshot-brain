@@ -1,3 +1,4 @@
+import '../core/utils/date_extensions.dart';
 import '../shared/models/expense_model.dart';
 import '../shared/models/screenshot_model.dart';
 
@@ -341,7 +342,11 @@ class AnalyticsService {
     int longest = 1;
     int run = 1;
     for (var i = 1; i < days.length; i++) {
-      if (days[i].difference(days[i - 1]).inDays == 1) {
+      // Calendar adjacency, not 24 elapsed hours: `days` holds local
+      // midnights, so a spring-forward gap makes the step 23 h and
+      // `Duration.inDays` truncates that to 0, splitting one spending run
+      // into two short ones on exactly the day the user kept spending.
+      if (days[i].dayOffsetFrom(days[i - 1]) == 1) {
         run++;
         if (run > longest) longest = run;
       } else {
@@ -354,7 +359,15 @@ class AnalyticsService {
     if (dayAmounts.containsKey(reference)) {
       anchor = reference;
     } else {
-      final yesterday = reference.subtract(const Duration(days: 1));
+      // Step by calendar fields (same construction as the `dateOnly` keys in
+      // `dayAmounts`): subtracting 24 real hours from a local midnight lands
+      // on 23:00/01:00 across a DST boundary, and that instant is never a
+      // map key, so the one-day grace silently disappeared.
+      final yesterday = DateTime(
+        reference.year,
+        reference.month,
+        reference.day - 1,
+      );
       if (dayAmounts.containsKey(yesterday)) anchor = yesterday;
     }
     int current = 0;
@@ -362,11 +375,14 @@ class AnalyticsService {
       var cursor = anchor;
       while (dayAmounts.containsKey(cursor)) {
         current++;
-        cursor = cursor.subtract(const Duration(days: 1));
+        cursor = DateTime(cursor.year, cursor.month, cursor.day - 1);
       }
     }
 
-    final spanDays = days.last.difference(days.first).inDays + 1; // >= 1
+    // Calendar span, not the midnight-to-midnight duration: a span containing
+    // a spring-forward loses an hour and `inDays` floors it down, which both
+    // shortened the reported span and inflated the per-day average.
+    final spanDays = days.last.dayOffsetFrom(days.first) + 1; // >= 1
 
     return StreakStats(
       currentStreak: current,
