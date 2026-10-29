@@ -158,7 +158,11 @@ class _ScreenshotListScreenState extends ConsumerState<ScreenshotListScreen> {
         // AsyncError state is what renders the failure, via the when() below.
         try {
           await ref.read(screenshotListProvider.future);
-        } catch (_) {}
+        } catch (error, stack) {
+          // Swallowed on purpose (see above), but never silently: without
+          // this line a refresh that keeps failing leaves no trace at all.
+          debugPrint('[ScreenshotList] Refresh failed: $error\n$stack');
+        }
       },
       child: GridView.builder(
         padding: const EdgeInsets.all(SBSpacing.lg),
