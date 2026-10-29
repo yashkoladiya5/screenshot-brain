@@ -114,7 +114,7 @@ class _CategoryCard extends StatelessWidget {
     final theme = Theme.of(context);
     return SbCard(
       padding: const EdgeInsets.all(SBSpacing.lg),
-      onTap: () => context.push('/categories/$name'),
+      onTap: () => context.push('/categories/${Uri.encodeComponent(name)}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,19 +127,31 @@ class _CategoryCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 26),
           ),
-          const SizedBox(height: SBSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: theme.textTheme.titleSmall),
-              const SizedBox(height: SBSpacing.xxs),
-              Text(
-                '$count screenshot${count == 1 ? '' : 's'}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: context.sb.textSecondary,
+          // No fixed spacer here: spaceBetween already separates the two
+          // blocks, and adding one on top meant that on a 400dp-wide phone the
+          // icon block plus the two text lines exceeded the tile height
+          // (childAspectRatio 1.3) and overflowed every card by ~3px.
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  // The tile has a fixed height, so a wrapping label pushed
+                  // the count out of the card entirely.
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall,
                 ),
-              ),
-            ],
+                const SizedBox(height: SBSpacing.xxs),
+                Text(
+                  '$count screenshot${count == 1 ? '' : 's'}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: context.sb.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

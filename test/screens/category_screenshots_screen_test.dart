@@ -231,6 +231,93 @@ void main() {
       expect(screen.categoryName, 'UPI Receipts');
       expect(find.text('No UPI Receipts Screenshots'), findsOneWidget);
     });
+
+    testWidgets('a category label containing path syntax still routes to '
+        'itself', (tester) async {
+      // Categories are free text once the categorizer meets an unknown
+      // label, and the card interpolated the name straight into the route:
+      // 'Bills/2026' matched /categories/Bills with a stray /2026 tail, and
+      // 'Notes?draft' lost everything from the '?' onward to the query
+      // parser. Both opened the wrong (or a nonexistent) screen.
+      final router = GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, _) => const CategoriesScreen()),
+          GoRoute(
+            path: '/categories/:name',
+            builder: (_, state) => CategoryScreenshotsScreen(
+              categoryName: state.pathParameters['name']!,
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            categoryCountsProvider.overrideWith(
+              (ref) async => const {'Bills/2026': 2, 'Notes?draft': 1},
+            ),
+            screenshotsByCategoryProvider.overrideWith(
+              (ref, _) async => const [],
+            ),
+          ],
+          child: MaterialApp.router(
+            theme: ScreenshotBrainTheme.light,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Bills/2026'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<CategoryScreenshotsScreen>(
+              find.byType(CategoryScreenshotsScreen),
+            )
+            .categoryName,
+        'Bills/2026',
+      );
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Notes?draft'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<CategoryScreenshotsScreen>(
+              find.byType(CategoryScreenshotsScreen),
+            )
+            .categoryName,
+        'Notes?draft',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a long category label ellipsizes instead of overflowing the '
+        'card', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const longLabel = 'Government Notifications And Circulars 2026';
+      await tester.pumpWidget(
+        _app(
+          const CategoriesScreen(),
+          overrides: [
+            categoryCountsProvider.overrideWith(
+              (ref) async => const {longLabel: 1, 'Bills': 2},
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(longLabel), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final title = tester.widget<Text>(find.text(longLabel));
+      expect(title.overflow, TextOverflow.ellipsis);
+      expect(title.maxLines, 1);
+    });
   });
 
   group('CategoryScreenshotsScreen', () {
@@ -262,10 +349,8 @@ void main() {
                 routes: [
                   GoRoute(
                     path: '/',
-                    builder:
-                        (_, _) => CategoryScreenshotsScreen(
-                          categoryName: category,
-                        ),
+                    builder: (_, _) =>
+                        CategoryScreenshotsScreen(categoryName: category),
                   ),
                   ...extraRoutes,
                 ],
