@@ -30,6 +30,29 @@ DateTime endOfDayInclusive(DateTime date) =>
 class ExpenseRepository {
   final Isar db = DatabaseService.db;
 
+  /// Every row whose effective date (`expenseDate ?? createdAt` — the rule
+  /// [AnalyticsService.expenseDateOf] and `ExpenseSnapshot.monthlyTotal`
+  /// document) falls inside `[start, end]`. Isar's `expenseDateBetween`
+  /// silently excludes rows with a null `expenseDate`, so undated expenses —
+  /// the ordinary outcome when the extractor finds an amount but no date —
+  /// have to be pulled in through a second `createdAt` query; the two result
+  /// sets are disjoint by construction (date present vs date null).
+  Future<List<ExpenseModel>> _modelsWithEffectiveDateBetween(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final dated = await db.expenseModels
+        .filter()
+        .expenseDateBetween(start, end)
+        .findAll();
+    final undated = await db.expenseModels
+        .filter()
+        .expenseDateIsNull()
+        .createdAtBetween(start, end)
+        .findAll();
+    return [...dated, ...undated];
+  }
+
   Future<List<ExpenseItem>> getAllExpenses() async {
     final models = await db.expenseModels.where().findAll();
     return models.map(_toItem).toList();
@@ -37,10 +60,10 @@ class ExpenseRepository {
 
   Future<List<ExpenseItem>> getExpensesByMonth(DateTime month) async {
     final (startOfMonth, endOfMonth) = monthQueryWindow(month);
-    final models = await db.expenseModels
-        .filter()
-        .expenseDateBetween(startOfMonth, endOfMonth)
-        .findAll();
+    final models = await _modelsWithEffectiveDateBetween(
+      startOfMonth,
+      endOfMonth,
+    );
     return models.map(_toItem).toList();
   }
 
@@ -107,10 +130,10 @@ class ExpenseRepository {
   /// filter gets to judge it.
   Future<double> getTotalForPeriod(DateTime start, DateTime end) async {
     final (windowStart, windowEnd) = periodQueryWindow(start, end);
-    final models = await db.expenseModels
-        .filter()
-        .expenseDateBetween(windowStart, windowEnd)
-        .findAll();
+    final models = await _modelsWithEffectiveDateBetween(
+      windowStart,
+      windowEnd,
+    );
     return AnalyticsService.totalAmount(models, start: start, end: end);
   }
 
@@ -123,10 +146,10 @@ class ExpenseRepository {
     final startMonth = AnalyticsService.monthStart(from);
     final endMonth = AnalyticsService.monthStart(to ?? DateTime.now());
     final (_, windowEnd) = monthQueryWindow(endMonth);
-    final models = await db.expenseModels
-        .filter()
-        .expenseDateBetween(startMonth, windowEnd)
-        .findAll();
+    final models = await _modelsWithEffectiveDateBetween(
+      startMonth,
+      windowEnd,
+    );
     return AnalyticsService.monthlyExpenseSeries(models, from: from, to: to);
   }
 
