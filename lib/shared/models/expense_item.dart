@@ -174,7 +174,12 @@ class ExpenseItem {
   String get descriptionDisplay {
     final text = (description ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
     if (text.length <= 100) return text;
-    return '${text.substring(0, 100)}…';
+    // Back off one code unit when the cut lands on the high half of a
+    // surrogate pair: receipt notes are full of emoji ("🍕 paid via UPI"), and
+    // slicing mid-pair leaves a lone dangling surrogate that renders as '?'.
+    var cut = 100;
+    if ((text.codeUnitAt(cut - 1) & 0xFC00) == 0xD800) cut -= 1;
+    return '${text.substring(0, cut)}…';
   }
 
   /// '24 Oct 2023' for the purchase date; 'N/A' when the date was not parsed.

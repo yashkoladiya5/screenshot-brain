@@ -170,9 +170,13 @@ class ScreenshotItem {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (collapsed.isEmpty) return null;
-    return collapsed.length <= 80
-        ? collapsed
-        : '${collapsed.substring(0, 80)}…';
+    if (collapsed.length <= 80) return collapsed;
+    // Back off one code unit when the cut lands on the high half of a
+    // surrogate pair — OCR text from chats and receipts is emoji-heavy, and a
+    // dangling low surrogate renders as '?' at the end of the preview.
+    var cut = 80;
+    if ((collapsed.codeUnitAt(cut - 1) & 0xFC00) == 0xD800) cut -= 1;
+    return '${collapsed.substring(0, cut)}…';
   }
 
   /// True when OCR produced any non-whitespace text.
