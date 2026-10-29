@@ -12,8 +12,15 @@ class ExpenseExtractionService {
 
   // ---------------------------------------------------------------- amount
 
+  /// Currency symbols/codes accepted on either side of the amount. The set is
+  /// the extraction half of `CategorizationService._currencySymbols` and has to
+  /// stay in lockstep with it: a symbol missing here does not just lose the
+  /// currency tag, it drops the number out of the tagged bucket altogether, and
+  /// the bare-number bucket then prefers the largest candidate — so in
+  /// `₨ 1,200 paid\nTxn 12345678` the 8-digit reference won and became the
+  /// amount.
   static const String _currencyToken =
-      r'(?:₹|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP)';
+      r'(?:₹|₨|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP)';
 
   /// A number with optional thousands separators / decimals:
   /// `1,299`, `1.299,90`, `1299,90`, `1299.90`, `50`.
@@ -44,7 +51,7 @@ class ExpenseExtractionService {
   /// Candidates are collected from three passes, best bucket wins, and within
   /// a bucket the largest value is preferred:
   /// 1. numbers on lines mentioning total / amount paid / payable,
-  /// 2. currency-tagged numbers (₹, $, €, £, Rs., INR, USD, EUR, GBP),
+  /// 2. currency-tagged numbers (₹, ₨, $, €, £, Rs., INR, USD, EUR, GBP),
   /// 3. bare numbers as a last resort.
   /// Dates (12/05/2024, 05-Dec-2024), phone numbers (`9876543210` and the
   /// space-grouped `98765 43210`) and long reference numbers are rejected.
@@ -194,7 +201,7 @@ class ExpenseExtractionService {
     RegExp(
       r"\b(?:[Ff][Rr][Oo][Mm]|[Aa][Tt])[ \t]+"
       r"([A-Z][A-Za-z&'\.]+(?:[ \t]+[A-Z][A-Za-z&'\.]+){0,3})"
-      r'(?=\s+(?:on|at|for|₹|\$|€|£|Rs|\d|\.|,|;|$))',
+      r'(?=\s+(?:on|at|for|₹|₨|\$|€|£|Rs|\d|\.|,|;|$))',
     ),
   ];
 
@@ -285,7 +292,7 @@ class ExpenseExtractionService {
     merchant = merchant.split(RegExp(r'[\n,;]')).first.trim();
     // Drop trailing price/date noise: cut at the first currency token or digit.
     final cut = merchant.indexOf(
-      RegExp(r'[₹$€£\d]|\b(?:INR|USD|EUR|GBP|Rs)\b'),
+      RegExp(r'[₹₨$€£\d]|\b(?:INR|USD|EUR|GBP|Rs)\b'),
     );
     if (cut >= 0) merchant = merchant.substring(0, cut);
     final words = merchant
@@ -318,7 +325,7 @@ class ExpenseExtractionService {
     if (s.length < 2 || s.length > 50) return false;
     if (_noiseLineRe.hasMatch(s)) return false;
     // No currency/digit noise: real merchant names in receipts are letters.
-    if (RegExp(r'(?:₹|\$|€|£|\d|[:/])').hasMatch(s)) return false;
+    if (RegExp(r'(?:₹|₨|\$|€|£|\d|[:/])').hasMatch(s)) return false;
     if (_domainWordRe.hasMatch(s)) return false;
     final words = s.split(RegExp(r'\s+'));
     if (words.length > 4) return false;
@@ -450,11 +457,24 @@ class ExpenseExtractionService {
     expense.merchant = extractMerchant(text);
     expense.expenseDate = extractDate(text) ?? DateTime.now();
     expense.category = _determineExpenseCategory(text);
-    expense.description = text.length > 200
-        ? '${text.substring(0, 200)}...'
-        : text;
+    expense.description = _truncateDescription(text);
     expense.createdAt = DateTime.now();
     return expense;
+  }
+
+  /// Description cap: the first 200 characters, plus the ellipsis marker.
+  ///
+  /// The cut backs off by one when it would fall between the two halves of an
+  /// astral character — emoji survive OCR of chat and app screenshots — since
+  /// a slice ending on a lone high surrogate is not valid UTF-16 and the
+  /// persisted description comes out mangled (or the write fails) exactly at
+  /// the 200-character boundary of long receipts.
+  static String _truncateDescription(String text) {
+    if (text.length <= 200) return text;
+    var cut = 200;
+    final last = text.codeUnitAt(cut - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) cut--;
+    return '${text.substring(0, cut)}...';
   }
 
   static const Map<String, Map<String, int>> _expenseCategoryKeywords = {
