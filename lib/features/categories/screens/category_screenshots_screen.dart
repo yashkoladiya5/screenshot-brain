@@ -11,6 +11,13 @@ import '../../../core/theme/app_colors.dart';
 
 class CategoryScreenshotsScreen extends ConsumerWidget {
   final String categoryName;
+
+  /// Longest edge (physical px) a grid thumbnail is decoded at. Three columns
+  /// of ~110dp tiles need ~330px on a 3x phone; decoding every capture at
+  /// native resolution costs several times that per tile, and the grid builds
+  /// a tile per visible row as the user scrolls.
+  static const int _thumbDecodeWidth = 384;
+
   const CategoryScreenshotsScreen({super.key, required this.categoryName});
 
   @override
@@ -33,7 +40,16 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: SBSpacing.sm),
-            Text(categoryName),
+            // AppBar bounds the title as a whole, not this Row's children: an
+            // OCR'd category label longer than the screen overflowed the Row
+            // and clipped the dot instead of the name.
+            Expanded(
+              child: Text(
+                categoryName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
@@ -86,8 +102,14 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
                   tag: 'screenshot_${screenshot.id}',
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(SBRadius.sm),
-                    child: Image.file(
-                      File(screenshot.filePath),
+                    child: Image(
+                      // Same bound the screenshot grid uses: the codec decodes
+                      // at _thumbDecodeWidth instead of the capture's real
+                      // width, so the library can hold thousands of tiles.
+                      image: ResizeImage(
+                        FileImage(File(screenshot.filePath)),
+                        width: _thumbDecodeWidth,
+                      ),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Container(
                         color: Theme.of(
