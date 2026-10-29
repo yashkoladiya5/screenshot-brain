@@ -31,10 +31,13 @@ class HomeDashboardScreen extends ConsumerWidget {
         error: (error, stack) {
           // Technical detail stays in the logs (repo-wide debugPrint pattern);
           // the user sees a short, actionable sentence instead of a dump.
-          debugPrint('[HomeDashboard] Could not load dashboard: $error\n$stack');
+          debugPrint(
+            '[HomeDashboard] Could not load dashboard: $error\n$stack',
+          );
           return AppErrorWidget(
             title: 'Could not load dashboard',
             message: "We couldn't load your dashboard. Please try again.",
+            icon: Icons.dashboard_outlined,
             onRetry: () => ref.invalidate(homeStatsProvider),
           );
         },
@@ -45,7 +48,21 @@ class HomeDashboardScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(homeStatsProvider),
+            onRefresh: () async {
+              ref.invalidate(homeStatsProvider);
+              // Await only to keep the material spinner up until the reload
+              // settles; a failure must NOT escape this callback —
+              // RefreshIndicator would leave its spinner hanging on an
+              // unhandled error. The reload's AsyncError state is what
+              // renders the failure, via the when() above.
+              try {
+                await ref.read(homeStatsProvider.future);
+              } catch (error, stack) {
+                // Swallowed on purpose (see above), but never silently:
+                // without this a refresh that keeps failing leaves no trace.
+                debugPrint('[HomeDashboard] Refresh failed: $error\n$stack');
+              }
+            },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
@@ -160,12 +177,21 @@ class _SliverAppBar extends ConsumerWidget {
     return SliverAppBar(
       floating: true,
       snap: true,
+      // The title slot is bounded by the two action buttons; wrapping text
+      // there overflows the fixed app-bar height at large font scales.
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Screenshot Brain', style: theme.textTheme.headlineSmall),
+          Text(
+            'Screenshot Brain',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineSmall,
+          ),
           Text(
             'Your intelligent screenshot assistant',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall,
           ),
         ],
@@ -295,7 +321,14 @@ class _CategoryBreakdown extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(entry.key, style: theme.textTheme.bodyMedium),
+                  // Long/uncategorised labels must not wrap into a second
+                  // line and outgrow the fixed-width amount column.
+                  child: Text(
+                    entry.key,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
                 Text(
                   '\u20b9${NumberFormat('#,##0').format(entry.value)}',
@@ -452,8 +485,14 @@ class _RecentExpensesList extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Merchant names are OCR text (e.g. unbreakable UPI
+                      // vpis); single-line ellipsis keeps the fixed-width
+                      // amount anchored right instead of overflowing the
+                      // row or inflating the tile height.
                       Text(
                         expense.merchant ?? 'Unknown',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -461,6 +500,8 @@ class _RecentExpensesList extends StatelessWidget {
                       const SizedBox(height: SBSpacing.xxs),
                       Text(
                         '${expense.category ?? "Other"} \u2022 ${expense.dateDisplay}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -468,6 +509,8 @@ class _RecentExpensesList extends StatelessWidget {
                 ),
                 Text(
                   expense.amountDisplay,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
                   ).textTheme.titleMedium?.copyWith(color: AppColors.success),
@@ -537,9 +580,16 @@ class _ScanningBanner extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2, color: primary),
             ),
             const SizedBox(width: SBSpacing.md),
-            Text(
-              'Scanning for screenshots...',
-              style: Theme.of(context).textTheme.bodyMedium,
+            // Row children must be bounded: an unbounded Text here overflowed
+            // the fixed-width card once the banner label + spinner exceeded
+            // the row (large font scales on small phones).
+            Expanded(
+              child: Text(
+                'Scanning for screenshots...',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
           ],
         ),
