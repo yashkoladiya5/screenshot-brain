@@ -45,7 +45,11 @@ class ExpenseSnapshot {
       items.add(expense);
       final amount = expense.amount ?? 0;
       total += amount;
-      final category = expense.category ?? 'Other';
+      // Same trimming the model getters and ExpenseRepository apply: a
+      // whitespace-only label became its own invisible bucket here while the
+      // dashboard chip rendered blank next to a real 'Other' row.
+      final stored = (expense.category ?? '').trim();
+      final category = stored.isEmpty ? 'Other' : stored;
       categoryTotals[category] = (categoryTotals[category] ?? 0) + amount;
       final date = expense.expenseDate ?? expense.createdAt;
       if (date.year == reference.year && date.month == reference.month) {
@@ -64,13 +68,14 @@ class ExpenseSnapshot {
     // binary drift like 99.99*3 + 34.59 == 334.55999999999995 never leaks
     // into displayed money. Canonical map order (total desc, name asc) keeps
     // the breakdown deterministic for equal totals.
-    final byCategory = categoryTotals.entries
-        .map((entry) => MapEntry(entry.key, entry.value.roundTo(2)))
-        .toList()
-      ..sort((a, b) {
-        final byTotal = b.value.compareTo(a.value);
-        return byTotal != 0 ? byTotal : a.key.compareTo(b.key);
-      });
+    final byCategory =
+        categoryTotals.entries
+            .map((entry) => MapEntry(entry.key, entry.value.roundTo(2)))
+            .toList()
+          ..sort((a, b) {
+            final byTotal = b.value.compareTo(a.value);
+            return byTotal != 0 ? byTotal : a.key.compareTo(b.key);
+          });
     return ExpenseSnapshot._(
       expenses: List<ExpenseItem>.unmodifiable(items),
       total: total.roundTo(2),
