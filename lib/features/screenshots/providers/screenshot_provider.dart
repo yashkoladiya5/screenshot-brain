@@ -186,8 +186,15 @@ class ScanOutcome {
 /// ([screenshotsByCategoryProvider]) after scans and deletes, and the expense
 /// dashboard ([expenseListProvider]) after deletes removed the screenshot's
 /// expense rows.
+///
+/// The per-screenshot detail cache ([screenshotDetailProvider]) was the next
+/// gap: it is a non-autoDispose family, so a detail screen opened *before* a
+/// retry pass re-enriched that row (or *before* the row was deleted) kept
+/// showing the stale pre-scan category/text — or the deleted screenshot —
+/// until the manual retry was tapped.
 void _invalidateMutationCaches(Ref ref) {
   ref.invalidate(screenshotListProvider);
+  ref.invalidate(screenshotDetailProvider);
   ref.invalidate(homeStatsProvider);
   ref.invalidate(categoryCountsProvider);
   ref.invalidate(screenshotsByCategoryProvider);
@@ -214,6 +221,15 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
+  /// True while a [scan] pass is running. Without this gate two overlapping
+  /// passes (the lifecycle `scanIfDue` fired on app resume while the user
+  /// taps Scan on home or settings) each snapshot `stored` before either
+  /// writes: the duplicate check in [_persistNewScreenshot] is a
+  /// find-then-insert with no atomicity between the two, so both passes can
+  /// insert a row for the same file — and the first pass to finish flips
+  /// `scanningProvider` off while the other is still working.
+  bool _scanInFlight = false;
+
   /// Scans the gallery for new screenshots and runs OCR on them.
   ///
   /// Never throws to the UI (screens fire this and forget it): per-file
@@ -230,7 +246,15 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
       return;
     }
 
+    if (_scanInFlight) {
+      debugPrint('[ScanNotifier] Skipped: another scan is already running');
+      return;
+    }
+
     ref.read(scanningProvider.notifier).state = true;
+    // Set only after the flag write above succeeded, and cleared in the
+    // `finally` below, so an aborted pass can never strand later scans.
+    _scanInFlight = true;
     OcrService? ocrService;
     var discovered = 0;
     var persisted = 0;
@@ -424,18 +448,33 @@ class ScanScreenshotsNotifier extends AsyncNotifier<void> {
     debugPrint('[ScanNotifier] Category="$category" for id=$id');
     await repo.updateCategory(id, category);
 
-    // Marks the row processed; ordered after categorization so a failure in
-    // any earlier step leaves the row queued for retry.
-    await repo.updateExtractedText(id, text);
-
     if (CategorizationService.isExpense(text)) {
       await repo.markAsExpense(id, true);
-      final expense = ExpenseExtractionService.extractExpense(text, id);
-      await DatabaseService.db.writeTxn(
-        () => DatabaseService.db.expenseModels.put(expense),
-      );
+      // Existence guard: a retry pass re-OCRs the same row after a crash
+      // between the expense write and the flag write below, and
+      // [ExpenseExtractionService.extractExpense] mints a fresh auto-increment
+      // row every call — without this check the retry would duplicate the
+      // expense on the dashboard.
+      final existingExpense = await DatabaseService.db.expenseModels
+          .filter()
+          .screenshotIdEqualTo(id)
+          .findFirst();
+      if (existingExpense == null) {
+        final expense = ExpenseExtractionService.extractExpense(text, id);
+        await DatabaseService.db.writeTxn(
+          () => DatabaseService.db.expenseModels.put(expense),
+        );
+      }
       debugPrint('[ScanNotifier] Marked as expense id=$id');
     }
+
+    // Marks the row processed; sequenced strictly last — including after the
+    // expense branch — so a failure (or a process kill) at any earlier step
+    // leaves the row queued for the next scan's [unprocessedRows] retry. The
+    // previous order flipped the flag before the expense writes, so an
+    // interrupted payment screenshot was silently never turned into an
+    // expense and no retry could ever recover it.
+    await repo.updateExtractedText(id, text);
   }
 }
 

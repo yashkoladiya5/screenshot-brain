@@ -56,11 +56,24 @@ int compareUnprocessedOrder(ScreenshotModel a, ScreenshotModel b) {
 class ScreenshotRepository {
   final Isar db = DatabaseService.db;
 
+  /// All rows (or those of one [category]), newest capture first.
+  ///
+  /// Sorted explicitly because the gallery grid renders this order verbatim:
+  /// the default `where()` order is primary-key (insertion) order, so after an
+  /// incremental scan the freshly captured screenshots — which carry the
+  /// largest ids but the newest `createdAt` — appeared at the *bottom* of the
+  /// list, under yesterday's captures. `id` desc breaks `createdAt` ties
+  /// (Isar keeps second precision) into a total order.
   Future<List<ScreenshotItem>> getAllScreenshots({String? category}) async {
     final query = db.screenshotModels.where();
     final models = await (category != null
-        ? query.filter().categoryEqualTo(category).findAll()
-        : query.findAll());
+        ? query
+              .filter()
+              .categoryEqualTo(category)
+              .sortByCreatedAtDesc()
+              .thenByIdDesc()
+              .findAll()
+        : query.sortByCreatedAtDesc().thenByIdDesc().findAll());
     debugPrint(
       '[ScreenshotRepo] getAllScreenshots() returning ${models.length} items (category=$category)',
     );
