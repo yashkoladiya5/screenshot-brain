@@ -34,8 +34,13 @@ extension StringExtension on String {
   /// accepted `'@'`, `'a@@b.com'` and `'user@'`, which is never valid.
   bool get isEmail => StringValidators.isValidEmail(this);
 
-  bool get isPhoneNumber =>
-      RegExp(r'^[\+]?[(]?[0-9]{1,4}[)]?[-\s\./0-9]*$').hasMatch(this);
+  /// Strict phone check shared with the form validators: the legacy loose
+  /// pattern accepted any 1-4 digit run plus digit-ish punctuation, so
+  /// `'12'`, `'12345'` and `'0000.000000'` passed here while
+  /// `ValidatorUtils.validatePhone` rejected the same strings. Delegates to
+  /// [StringValidators.isValidPhone] (E.164 or 10-digit national), the same
+  /// single source of truth as [isEmail] above.
+  bool get isPhoneNumber => StringValidators.isValidPhone(this);
 }
 
 extension ContextExtension on BuildContext {
