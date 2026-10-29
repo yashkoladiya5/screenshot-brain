@@ -45,7 +45,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sb = context.sb;
-    final query = ref.watch(searchQueryProvider);
+    final rawQuery = ref.watch(searchQueryProvider);
+    // The provider normalizes before matching and keeps the last results for
+    // a query that normalizes to empty, so the view branch must use the
+    // normalized value too: whitespace-only input used to resurrect the
+    // previous query's result list instead of showing the suggestions.
+    final query = normalizeSearchQuery(rawQuery);
     final resultsAsync = ref.watch(searchResultsProvider);
     final suggestions = ref.watch(searchSuggestionsProvider);
 
@@ -87,7 +92,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             color: sb.textTertiary,
                             size: SBSizes.iconMd,
                           ),
-                          suffixIcon: query.isNotEmpty
+                          // Seeded from the raw field text, not the
+                          // normalized query: spaces-only text still needs
+                          // the one-tap clear affordance.
+                          suffixIcon: rawQuery.isNotEmpty
                               ? IconButton(
                                   key: const Key('searchClearButton'),
                                   icon: Icon(
@@ -178,12 +186,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         message: 'Searching...',
         icon: Icons.search_rounded,
       ),
-      error: (error, _) => AppErrorWidget(
-        title: 'Search failed',
-        message: 'We could not search your screenshots. $error',
-        icon: Icons.search_off_rounded,
-        onRetry: () => ref.invalidate(searchResultsProvider),
-      ),
+      error: (error, stack) {
+        // Technical detail stays in the logs (repo-wide debugPrint pattern);
+        // a raw `error.toString()` suffix here both leaked internals to the
+        // user and dropped the stack, so failures were unactionable on
+        // screen and undebuggable in the logs.
+        debugPrint('[Search] Could not search screenshots: $error\n$stack');
+        return AppErrorWidget(
+          title: 'Search failed',
+          message: "We couldn't search your screenshots. Please try again.",
+          icon: Icons.search_off_rounded,
+          onRetry: () => ref.invalidate(searchResultsProvider),
+        );
+      },
       data: (results) {
         if (results.isEmpty) {
           return const EmptyStateWidget(
@@ -252,10 +267,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: SBSpacing.xs),
-                                  Text(
-                                    screenshot.category ?? 'Uncategorized',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: catColor,
+                                  // Category labels are OCR output, not the
+                                  // canonical vocabulary: an unbounded Text
+                                  // here pushed the fixed-width row past the
+                                  // card edge on narrow screens.
+                                  Expanded(
+                                    child: Text(
+                                      screenshot.category ?? 'Uncategorized',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(color: catColor),
                                     ),
                                   ),
                                 ],
