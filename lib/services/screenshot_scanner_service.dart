@@ -39,7 +39,10 @@ class ScreenshotScannerService {
   ///
   /// [knownPaths] are paths already persisted by the caller; they are excluded
   /// from the result. [notBefore] drops assets created before that instant
-  /// (e.g. derived from `AppSettings.scanIntervalHours`).
+  /// (e.g. derived from `AppSettings.scanIntervalHours`), where the capture
+  /// time is the media-store create date with the file name's timestamp as
+  /// fallback; an asset carrying neither is dropped as well, because keeping
+  /// it would re-resolve its file on every scan without ever dating it.
   ///
   /// Results are deduplicated by asset id and path and sorted newest first.
   /// Failures of individual albums are isolated and logged; unexpected
@@ -72,16 +75,26 @@ class ScreenshotScannerService {
     final screenshotAlbums = <AssetPathEntity>[];
     AssetPathEntity? allAlbum;
     for (final path in paths) {
-      final relPath = (await path.relativePathAsync) ?? '';
-      if (isScreenshotAlbumName(path.name, relativePath: relPath)) {
-        final count = await path.assetCountAsync;
+      try {
+        final relPath = (await path.relativePathAsync) ?? '';
+        if (isScreenshotAlbumName(path.name, relativePath: relPath)) {
+          final count = await path.assetCountAsync;
+          debugPrint(
+            '[ScannerService]   MATCH: "${path.name}" '
+            'relativePath="$relPath" assets=$count',
+          );
+          screenshotAlbums.add(path);
+        } else if (path.isAll) {
+          allAlbum = path;
+        }
+      } catch (e) {
+        // A corrupt OEM album entry throws right here, before the paging loop
+        // that isolates failures per album: without this guard one unreadable
+        // album used to abort the whole scan and lose every other album's
+        // screenshots.
         debugPrint(
-          '[ScannerService]   MATCH: "${path.name}" '
-          'relativePath="$relPath" assets=$count',
+          '[ScannerService]   Album "${path.name}" metadata failed: $e',
         );
-        screenshotAlbums.add(path);
-      } else if (path.isAll) {
-        allAlbum = path;
       }
     }
 
@@ -130,13 +143,23 @@ class ScreenshotScannerService {
                 )) {
               continue;
             }
-            // Cheap date filter before touching the filesystem. Assets whose
-            // creation time is unknown are kept unless a window is set.
+            // Cheap date filter before touching the filesystem. The filename
+            // timestamp is parsed here too (still no IO): screenshot names
+            // carry a capture time almost universally, and an asset whose
+            // media-store create date is missing used to skip the filter
+            // entirely, so every scan re-resolved it through `asset.file`
+            // (cloud fetch included) and handed a years-old file back as new
+            // work.
             final created = asset.createDateSecond == null
                 ? null
                 : asset.createDateTime;
-            if (created != null &&
-                !isWithinWindow(created, notBefore: notBefore)) {
+            final modified =
+                created ?? timestampFromFilename(asset.title ?? '');
+            if (modified == null) {
+              // No derivable timestamp at all: only an unwindowed scan keeps
+              // it, or the asset is re-resolved on every scan forever.
+              if (notBefore != null) continue;
+            } else if (!isWithinWindow(modified, notBefore: notBefore)) {
               continue;
             }
             final file = await _fileFor(asset);
@@ -146,15 +169,12 @@ class ScreenshotScannerService {
               );
               continue;
             }
-            // When the media store reports no creation time, fall back to the
-            // timestamp encoded in the file name (screenshot formats carry it
-            // almost universally) so ordering is not arbitrary epoch-0.
-            final modified =
-                created ??
-                timestampFromFilename(asset.title ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
             discovered.add(
-              ScannedAsset(id: asset.id, path: file.path, modified: modified),
+              ScannedAsset(
+                id: asset.id,
+                path: file.path,
+                modified: modified ?? DateTime.fromMillisecondsSinceEpoch(0),
+              ),
             );
           }
 
