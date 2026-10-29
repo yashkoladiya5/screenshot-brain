@@ -239,9 +239,12 @@ class _ViewerActionsState extends ConsumerState<_ViewerActions> {
     try {
       // Provider performs the DB delete and invalidates list/home itself.
       await ref.read(deleteScreenshotProvider(_item.id).future);
-    } catch (error) {
+    } catch (error, stack) {
       _deleteRequested = false;
-      debugPrint('[ScreenshotViewer] Delete failed: $error');
+      // The stack is the only part that says WHY the delete failed (locked
+      // database, missing row, cascade error), and every other catch site in
+      // the repo logs it.
+      debugPrint('[ScreenshotViewer] Delete failed: $error\n$stack');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not delete this screenshot.')),
