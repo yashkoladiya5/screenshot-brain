@@ -204,9 +204,22 @@ class _ViewerActionsState extends ConsumerState<_ViewerActions> {
     if (oldWidget.item.id != widget.item.id) _deleteRequested = false;
   }
 
-  Future<void> _share() => Share.shareXFiles([
-    XFile(_item.filePath),
-  ], text: _item.extractedText ?? '');
+  Future<void> _share() async {
+    try {
+      await Share.shareXFiles([
+        XFile(_item.filePath),
+      ], text: _item.extractedText ?? '');
+    } catch (error, stack) {
+      // The capture can leave the gallery after the scan, and the platform
+      // sheet fails on its own; both used to escape as an unhandled async
+      // error with the tap appearing to do nothing.
+      debugPrint('[ScreenshotViewer] Share failed: $error\n$stack');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not share this screenshot.')),
+      );
+    }
+  }
 
   Future<void> _confirmDelete() async {
     if (_deleteRequested) return;
