@@ -32,9 +32,20 @@ class _ScreenshotDetailScreenState
   int get _id => int.tryParse(widget.screenshotId) ?? 0;
 
   Future<void> _share(ScreenshotItem screenshot) async {
-    await Share.shareXFiles([
-      XFile(screenshot.filePath),
-    ], text: screenshot.extractedText ?? '');
+    try {
+      await Share.shareXFiles([
+        XFile(screenshot.filePath),
+      ], text: screenshot.extractedText ?? '');
+    } catch (error, stack) {
+      // The file can leave the gallery between the scan and the tap, and the
+      // platform sheet fails on its own; both used to escape as an unhandled
+      // async error with the user seeing nothing happen.
+      debugPrint('[ScreenshotDetail] Share failed: $error\n$stack');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not share this screenshot.')),
+      );
+    }
   }
 
   Future<void> _delete() async {
@@ -89,13 +100,16 @@ class _ScreenshotDetailScreenState
           IconButton(
             icon: const Icon(Icons.share_rounded),
             tooltip: 'Share',
-            onPressed: () async {
-              final screenshot = await ref.read(
-                screenshotDetailProvider(_id).future,
-              );
-              if (screenshot != null) {
-                await _share(screenshot);
-              }
+            onPressed: () {
+              // Reading the AsyncValue instead of `.future` means a failed
+              // detail query cannot throw out of this callback (nothing here
+              // is awaited, so no use of a disposed context either); the
+              // error branch already renders the retry.
+              final screenshot = ref
+                  .read(screenshotDetailProvider(_id))
+                  .valueOrNull;
+              if (screenshot == null) return;
+              _share(screenshot);
             },
           ),
           IconButton(
@@ -110,7 +124,9 @@ class _ScreenshotDetailScreenState
         error: (error, stack) {
           // Technical detail stays in the logs (repo-wide debugPrint pattern);
           // the user sees a short, actionable sentence instead of a dump.
-          debugPrint('[ScreenshotDetail] Could not load details: $error\n$stack');
+          debugPrint(
+            '[ScreenshotDetail] Could not load details: $error\n$stack',
+          );
           return AppErrorWidget(
             title: 'Could not load details',
             message: "We couldn't load these details. Please try again.",
