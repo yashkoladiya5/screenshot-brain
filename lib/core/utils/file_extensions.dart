@@ -120,8 +120,14 @@ extension ScreenshotPathExtensions on String {
 
     final trailing = RegExp(r'^(.*?) \((\d+)\)$').firstMatch(stem);
     if (trailing != null) {
-      final next = int.parse(trailing.group(2)!) + 1;
-      return '${trailing.group(1)} ($next)$ext';
+      // Digit runs past the int range (20+ digits — OCR'd reference numbers
+      // do land inside parentheses in file names) make `int.parse` throw
+      // FormatException and kill the save flow; an unparseable counter is
+      // simply not a counter, so start the sequence at (2).
+      final counter = int.tryParse(trailing.group(2)!);
+      if (counter != null) {
+        return '${trailing.group(1)} (${counter + 1})$ext';
+      }
     }
     return '$stem (2)$ext';
   }
