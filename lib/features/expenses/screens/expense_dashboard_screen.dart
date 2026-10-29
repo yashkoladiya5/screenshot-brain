@@ -11,6 +11,19 @@ import '../../../core/components/sb_card.dart';
 import '../../../core/components/sb_section_header.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/expense_item.dart'
+    show kExpenseCurrencyLocale, kExpenseCurrencySymbol;
+
+/// Dashboard money follows the app's declared currency presentation
+/// (`en_IN` lakh/crore grouping + ₹, shared with the expense models). The
+/// previous locale-less `NumberFormat('#,##0.00')` resolved against the
+/// device locale, so the summary tile printed '₹129.900,00' on a German
+/// device while list rows on the same screen spoke the shared format.
+final NumberFormat _rupeeFormat = NumberFormat.currency(
+  locale: kExpenseCurrencyLocale,
+  symbol: kExpenseCurrencySymbol,
+  decimalDigits: 2,
+);
 
 class ExpenseDashboardScreen extends ConsumerStatefulWidget {
   const ExpenseDashboardScreen({super.key});
@@ -109,7 +122,7 @@ class _ExpenseDashboardScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '\u20b9${NumberFormat('#,##0.00').format(snapshot.total)}',
+                  _rupeeFormat.format(snapshot.total),
                   style: theme.textTheme.displaySmall?.copyWith(
                     color: AppColors.success,
                   ),
@@ -129,7 +142,7 @@ class _ExpenseDashboardScreenState
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\u20b9${NumberFormat('#,##0.00').format(snapshot.monthlyTotal)}',
+                _rupeeFormat.format(snapshot.monthlyTotal),
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: theme.colorScheme.primary,
                 ),
@@ -204,7 +217,7 @@ class _ExpenseDashboardScreenState
                     ),
                     const SizedBox(width: SBSpacing.sm),
                     Text(
-                      '\u20b9${NumberFormat('#,##0.00').format(entry.value)}',
+                      _rupeeFormat.format(entry.value),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -381,7 +394,7 @@ class _ExpenseCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  expense.merchant ?? 'Unknown',
+                  expense.merchantDisplay,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -390,7 +403,7 @@ class _ExpenseCard extends StatelessWidget {
                 ),
                 const SizedBox(height: SBSpacing.xxs),
                 Text(
-                  '${expense.category ?? "Other"} • ${expense.dateDisplay}',
+                  '${expense.categoryDisplay} \u2022 ${expense.dateDisplay}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall,
