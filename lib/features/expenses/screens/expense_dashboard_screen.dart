@@ -175,20 +175,34 @@ class _ExpenseDashboardScreenState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: catColor,
-                            borderRadius: BorderRadius.circular(SBRadius.full),
+                    // The label is the only elastic child; without Expanded a
+                    // long category name pushed the amount off the right edge.
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: catColor,
+                              borderRadius: BorderRadius.circular(
+                                SBRadius.full,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: SBSpacing.sm),
-                        Text(entry.key, style: theme.textTheme.bodyMedium),
-                      ],
+                          const SizedBox(width: SBSpacing.sm),
+                          Flexible(
+                            child: Text(
+                              entry.key,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: SBSpacing.sm),
                     Text(
                       '\u20b9${NumberFormat('#,##0.00').format(entry.value)}',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -368,13 +382,17 @@ class _ExpenseCard extends StatelessWidget {
               children: [
                 Text(
                   expense.merchant ?? 'Unknown',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: SBSpacing.xxs),
                 Text(
-                  '${expense.category ?? "Other"} \u2022 ${expense.dateDisplay}',
+                  '${expense.category ?? "Other"} • ${expense.dateDisplay}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall,
                 ),
               ],
