@@ -15,18 +15,15 @@ Widget _scrollList(
     controller: controller,
     physics: physics,
     children: [
-      for (var i = 0; i < count; i++) SizedBox(height: 50, child: Text('Item $i')),
+      for (var i = 0; i < count; i++)
+        SizedBox(height: 50, child: Text('Item $i')),
     ],
   );
   if (scrollBehavior != null) {
     list = ScrollConfiguration(behavior: scrollBehavior, child: list);
   }
   return MaterialApp(
-    home: Scaffold(
-      body: SizedBox.expand(
-        child: list,
-      ),
-    ),
+    home: Scaffold(body: SizedBox.expand(child: list)),
   );
 }
 
@@ -72,8 +69,7 @@ void main() {
       expect(5.let((v) => '$v!').let((s) => s.length), 2);
     });
 
-    test('also returns the identical receiver and runs side effects once',
-        () {
+    test('also returns the identical receiver and runs side effects once', () {
       final calls = <String>[];
       final buffer = StringBuffer();
       final returned = buffer.also((b) => calls.add('first')).also((b) {
@@ -166,8 +162,7 @@ void main() {
       expect(Colors.black.lighten(1.0), const Color(0xFFFFFFFF));
     });
 
-    test('clamping at the extremes: cannot go below black or above white',
-        () {
+    test('clamping at the extremes: cannot go below black or above white', () {
       expect(Colors.black.darken(0.5), const Color(0xFF000000));
       expect(Colors.white.lighten(0.5), const Color(0xFFFFFFFF));
       expect(lightnessOf(Colors.grey.darken(1.0)), 0.0);
@@ -226,8 +221,7 @@ void main() {
       expect(base.lighten(1.0), isA<Color>());
     });
 
-    test('hex parsing: darken/lighten act on ARGB-parsed colors correctly',
-        () {
+    test('hex parsing: darken/lighten act on ARGB-parsed colors correctly', () {
       // Pure blue channel: only .b set; darkening must scale it down,
       // lightening pushes toward a paler blue with hue preserved.
       // (Amount 0.3, not 0.5: a full 0.5 shift lands exactly on black/white,
@@ -263,24 +257,27 @@ void main() {
   });
 
   group('ScrollUtils', () {
-    testWidgets('scrollToTop is a safe no-op for an unattached controller',
-        (tester) async {
+    testWidgets('scrollToTop is a safe no-op for an unattached controller', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await ScrollUtils.scrollToTop(controller);
       expect(controller.hasClients, isFalse);
       controller.dispose();
     });
 
-    testWidgets('scrollToBottom is a safe no-op for an unattached controller',
-        (tester) async {
+    testWidgets('scrollToBottom is a safe no-op for an unattached controller', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await ScrollUtils.scrollToBottom(controller);
       expect(controller.hasClients, isFalse);
       controller.dispose();
     });
 
-    testWidgets('helpers are safe after the scrollable is disposed',
-        (tester) async {
+    testWidgets('helpers are safe after the scrollable is disposed', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(_scrollList(controller, count: 20));
       expect(controller.hasClients, isTrue);
@@ -292,8 +289,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('scrollToTop returns a scrolled list to offset 0',
-        (tester) async {
+    testWidgets('scrollToTop returns a scrolled list to offset 0', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(_scrollList(controller));
       await tester.drag(find.byType(ListView), const Offset(0, -400));
@@ -306,8 +304,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('scrollToTop when already at the target completes cleanly',
-        (tester) async {
+    testWidgets('scrollToTop when already at the target completes cleanly', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(_scrollList(controller));
       _fireScroll(ScrollUtils.scrollToTop(controller));
@@ -332,8 +331,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('scrollToBottom already at the bottom stays put',
-        (tester) async {
+    testWidgets('scrollToBottom already at the bottom stays put', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(_scrollList(controller));
       controller.jumpTo(controller.position.maxScrollExtent);
@@ -345,8 +345,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('zero-extent viewport (content smaller than viewport)',
-        (tester) async {
+    testWidgets('zero-extent viewport (content smaller than viewport)', (
+      tester,
+    ) async {
       final controller = ScrollController();
       // Two short items in an expanded viewport: nothing to scroll.
       await tester.pumpWidget(_scrollList(controller, count: 2));
@@ -362,14 +363,16 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('scrollToTop recovers from a negative overscrolled offset',
-        (tester) async {
+    testWidgets('scrollToTop recovers from a negative overscrolled offset', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(
         _scrollList(controller, physics: const BouncingScrollPhysics()),
       );
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(ListView)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(ListView)),
+      );
       await gesture.moveBy(const Offset(0, 150)); // overscroll past the top
       await gesture.up();
       expect(controller.position.pixels, lessThan(0));
@@ -389,10 +392,12 @@ void main() {
       final start = controller.position.pixels;
       expect(start, greaterThan(0));
 
-      _fireScroll(ScrollUtils.scrollToTop(
-        controller,
-        duration: const Duration(milliseconds: 400),
-      ));
+      _fireScroll(
+        ScrollUtils.scrollToTop(
+          controller,
+          duration: const Duration(milliseconds: 400),
+        ),
+      );
       // First pump starts the animation ticker; only later pumps advance it.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -404,8 +409,9 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('zero duration is rejected by the animateTo contract',
-        (tester) async {
+    testWidgets('zero duration is rejected by the animateTo contract', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(_scrollList(controller));
       await tester.drag(find.byType(ListView), const Offset(0, -100));
@@ -419,8 +425,7 @@ void main() {
     });
 
     testWidgets('scrollToBottom works with one controller attached to '
-        'multiple scroll views (regression: threw StateError)',
-        (tester) async {
+        'multiple scroll views (regression: threw StateError)', (tester) async {
       final controller = ScrollController();
       await tester.pumpWidget(
         MaterialApp(
@@ -463,9 +468,63 @@ void main() {
       controller.dispose();
     });
 
+    testWidgets('scrollToTop works with one controller attached to '
+        'multiple scroll views (regression: controller.animateTo threw '
+        'StateError via controller.position)', (tester) async {
+      final controller = ScrollController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                SizedBox(
+                  height: 200,
+                  child: ListView(
+                    controller: controller,
+                    children: [
+                      for (var i = 0; i < 20; i++)
+                        SizedBox(height: 50, child: Text('A$i')),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 250,
+                  child: ListView(
+                    controller: controller,
+                    children: [
+                      for (var i = 0; i < 40; i++)
+                        SizedBox(height: 50, child: Text('B$i')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(controller.positions.length, 2);
+
+      // Scroll both views away from the top so the call has work to do.
+      await tester.drag(find.byType(ListView).first, const Offset(0, -100));
+      await tester.drag(find.byType(ListView).last, const Offset(0, -120));
+      await tester.pumpAndSettle();
+      for (final position in controller.positions) {
+        expect(position.pixels, greaterThan(0));
+      }
+
+      _fireScroll(ScrollUtils.scrollToTop(controller));
+      await tester.pumpAndSettle();
+
+      for (final position in controller.positions) {
+        expect(position.pixels, 0.0);
+      }
+      controller.dispose();
+    });
+
     testWidgets('buildOverscrollIndicator returns a stretching indicator '
-        'wrapping the exact child with the scrollable direction',
-        (tester) async {
+        'wrapping the exact child with the scrollable direction', (
+      tester,
+    ) async {
       late BuildContext capturedContext;
       final child = const Text('content');
       await tester.pumpWidget(
@@ -492,17 +551,20 @@ void main() {
       expect(stretching.axisDirection, AxisDirection.right);
 
       for (final direction in AxisDirection.values) {
-        final built = ScrollUtils.buildOverscrollIndicator(
-          capturedContext,
-          child,
-          ScrollableDetails(direction: direction),
-        ) as StretchingOverscrollIndicator;
+        final built =
+            ScrollUtils.buildOverscrollIndicator(
+                  capturedContext,
+                  child,
+                  ScrollableDetails(direction: direction),
+                )
+                as StretchingOverscrollIndicator;
         expect(built.axisDirection, direction);
       }
     });
 
-    testWidgets('installed as an overscroll indicator in a real scroll tree',
-        (tester) async {
+    testWidgets('installed as an overscroll indicator in a real scroll tree', (
+      tester,
+    ) async {
       final controller = ScrollController();
       await tester.pumpWidget(
         _scrollList(
