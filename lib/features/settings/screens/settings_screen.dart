@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/settings_provider.dart';
+import '../../screenshots/providers/screenshot_provider.dart';
 import '../../../core/design/tokens.dart';
 import '../../../core/components/sb_card.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -12,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sb = context.sb;
     final settings = ref.watch(settingsProvider);
+    final isScanning = ref.watch(scanningProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -117,13 +119,17 @@ class SettingsScreen extends ConsumerWidget {
             child: _SettingTile(
               icon: Icons.refresh_rounded,
               title: 'Rescan All Screenshots',
-              subtitle: 'Clear all data and rescan',
+              subtitle: isScanning
+                  ? 'A scan is already running'
+                  : 'Look for screenshots missing from the library',
               trailing: Icon(
                 Icons.chevron_right_rounded,
                 color: sb.textTertiary,
                 size: SBSizes.iconMd,
               ),
-              onTap: () => _confirmRescan(context),
+              // Same re-entrancy guard the library FAB uses: two overlapping
+              // passes would double the OCR load and fight over the same rows.
+              onTap: isScanning ? null : () => _confirmRescan(context, ref),
             ),
           ),
 
@@ -164,21 +170,23 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmRescan(BuildContext context) {
-    showDialog(
+  Future<void> _confirmRescan(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rescan All?'),
         content: const Text(
-          'This will clear all existing data and rescan your screenshots. Continue?',
+          'This will scan your gallery again and import any screenshot that '
+          'is not in your library yet. Continue?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            key: const Key('confirmRescan'),
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Rescan',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -187,6 +195,11 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+    if (confirmed != true) return;
+    // The scan is fire-and-forget on purpose: it publishes its own progress
+    // through scanningProvider, and awaiting it here would keep the settings
+    // screen blocked on a pass that can run for minutes.
+    ref.read(scanScreenshotsProvider.notifier).scan();
   }
 }
 
