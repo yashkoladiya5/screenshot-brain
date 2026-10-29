@@ -157,6 +157,11 @@ class _ScreenshotDetailScreenState
 }
 
 class _DetailBody extends StatelessWidget {
+  /// Longest edge (physical px) the preview is decoded at. The slot is
+  /// ~400x300dp, so a native 1440x3040 capture costs ~4x the pixels it can
+  /// ever show; the fullscreen viewer still decodes at full resolution.
+  static const int _previewDecodeWidth = 1080;
+
   final ScreenshotItem screenshot;
   final bool textExpanded;
   final VoidCallback onToggleText;
@@ -194,8 +199,11 @@ class _DetailBody extends StatelessWidget {
               padding: EdgeInsets.zero,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(SBRadius.xl),
-                child: Image.file(
-                  File(screenshot.filePath),
+                child: Image(
+                  image: ResizeImage(
+                    FileImage(File(screenshot.filePath)),
+                    width: _previewDecodeWidth,
+                  ),
                   width: double.infinity,
                   height: 300,
                   fit: BoxFit.contain,
