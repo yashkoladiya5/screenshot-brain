@@ -48,11 +48,17 @@ class _ExpenseDashboardScreenState
           message: 'Loading expenses...',
           icon: Icons.account_balance_wallet_rounded,
         ),
-        error: (error, _) => AppErrorWidget(
-          title: 'Could not load expenses',
-          message: error.toString(),
-          onRetry: () => ref.invalidate(expenseListProvider),
-        ),
+        error: (error, stack) {
+          // Technical detail stays in the logs (repo-wide debugPrint pattern);
+          // the user sees a short, actionable sentence instead of a dump.
+          debugPrint('[Expenses] Could not load expenses: $error\n$stack');
+          return AppErrorWidget(
+            title: 'Could not load expenses',
+            message: "We couldn't load your expenses. Please try again.",
+            icon: Icons.account_balance_wallet_outlined,
+            onRetry: () => ref.invalidate(expenseListProvider),
+          );
+        },
         data: (snapshot) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(expenseListProvider),
           child: SingleChildScrollView(
