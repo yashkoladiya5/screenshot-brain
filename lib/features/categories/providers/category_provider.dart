@@ -23,9 +23,16 @@ const List<String> kCategoryList = [
 const String kUncategorizedBucket = 'Other';
 
 /// Category a stored row belongs to: uncategorized rows (`category == null`)
-/// live in the `Other` bucket.
-String effectiveCategoryOf(String? storedCategory) =>
-    storedCategory ?? kUncategorizedBucket;
+/// and blank/padded labels live in the `Other` bucket. Trimming (and folding
+/// empties) is what every other surface already promises —
+/// `ScreenshotItem.categoryDisplay`, `ExpenseSnapshot.byCategory` and
+/// `AnalyticsService` all normalize on the trimmed value; without it a row
+/// saved with `category: ''` was counted under a nameless bucket and the
+/// Categories screen rendered a card whose title was literally blank.
+String effectiveCategoryOf(String? storedCategory) {
+  final trimmed = (storedCategory ?? '').trim();
+  return trimmed.isEmpty ? kUncategorizedBucket : trimmed;
+}
 
 /// Counts rows by [effectiveCategoryOf], the same bucketing the category
 /// badges promise. Kept pure so the count/query symmetry can be tested
