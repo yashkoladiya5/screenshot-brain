@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'string_validators.dart';
+
 /// Barrel over the app's core Dart extensions.
 ///
 /// `export`s (not duplicate definitions) keep every extension single-homed in
@@ -15,8 +17,23 @@ export 'string_extensions.dart';
 extension StringExtension on String {
   String get capitalized =>
       isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
-  String get truncated => length > 100 ? '${substring(0, 100)}...' : this;
-  bool get isEmail => contains('@');
+
+  /// Truncates to 100 UTF-16 code units plus an ellipsis.
+  ///
+  /// The cut backs off by one unit when it would land inside a surrogate
+  /// pair (emoji in screenshot OCR text is common), so the result never
+  /// carries a dangling half that corrupts rendering or encoding.
+  String get truncated {
+    if (length <= 100) return this;
+    var cut = 100;
+    if ((codeUnitAt(cut - 1) & 0xFC00) == 0xD800) cut -= 1;
+    return '${substring(0, cut)}...';
+  }
+
+  /// Strict address check shared with the form validators; `contains('@')`
+  /// accepted `'@'`, `'a@@b.com'` and `'user@'`, which is never valid.
+  bool get isEmail => StringValidators.isValidEmail(this);
+
   bool get isPhoneNumber =>
       RegExp(r'^[\+]?[(]?[0-9]{1,4}[)]?[-\s\./0-9]*$').hasMatch(this);
 }
