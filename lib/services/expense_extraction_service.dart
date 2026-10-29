@@ -13,12 +13,12 @@ class ExpenseExtractionService {
   // ---------------------------------------------------------------- amount
 
   /// Currency symbols/codes accepted on either side of the amount. The set is
-  /// the extraction half of `CategorizationService._currencySymbols` and has to
-  /// stay in lockstep with it: a symbol missing here does not just lose the
-  /// currency tag, it drops the number out of the tagged bucket altogether, and
-  /// the bare-number bucket then prefers the largest candidate — so in
-  /// `₨ 1,200 paid\nTxn 12345678` the 8-digit reference won and became the
-  /// amount.
+  /// the extraction half of `CategorizationService`'s currency alternation and
+  /// has to stay in lockstep with it: a symbol missing here does not just lose
+  /// the currency tag, it drops the number out of the tagged bucket altogether,
+  /// and the bare-number bucket then prefers the largest candidate — so in
+  /// "`₨ 1,200 paid`" above a "`Txn 12345678`" line the reference won and
+  /// became the amount.
   static const String _currencyToken =
       r'(?:₹|₨|\$|€|£|\bRs\.?|\bINR|\bUSD|\bEUR|\bGBP)';
 

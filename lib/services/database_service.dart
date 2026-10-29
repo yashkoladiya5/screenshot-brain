@@ -34,11 +34,14 @@ class DatabaseService {
 
   /// The collections the database is opened with. Exposed so tests can pin
   /// the option set without opening Isar.
+  ///
+  /// Frozen: this list is handed straight to the (injectable) opener, so a
+  /// consumer that sorts or trims the list it receives would silently change
+  /// which collections every later open registers — a dropped schema means
+  /// Isar refuses to open or a whole collection's rows become unreachable.
   @visibleForTesting
-  static final List<CollectionSchema<dynamic>> collectionSchemas = [
-    ScreenshotModelSchema,
-    ExpenseModelSchema,
-  ];
+  static final List<CollectionSchema<dynamic>> collectionSchemas =
+      List.unmodifiable([ScreenshotModelSchema, ExpenseModelSchema]);
 
   static Future<Isar> _defaultOpen(
     List<CollectionSchema<dynamic>> schemas,
