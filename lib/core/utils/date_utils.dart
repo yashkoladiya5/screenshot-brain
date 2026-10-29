@@ -1,5 +1,12 @@
 import 'package:intl/intl.dart';
 
+/// Month labels are English section headers ('January 2025'); the locale must
+/// be explicit because DateFormat with no locale follows the ambient Intl/
+/// device locale — silently localizing labels on non-English devices, and
+/// throwing LocaleDataException for locales whose data is never initialized
+/// (only `en_US` ships by default).
+const _labelLocale = 'en_US';
+
 /// Calendar helpers for month/week bucketing in the screenshot timeline.
 ///
 /// All "day" arithmetic is calendar-based and time-of-day independent:
@@ -80,7 +87,7 @@ class DateUtils {
 
   /// Human month label for a date, e.g. `January 2025`.
   static String monthLabel(DateTime date) {
-    return DateFormat('MMMM yyyy').format(date);
+    return DateFormat('MMMM yyyy', _labelLocale).format(date);
   }
 
   /// Human month label from a [monthKey] string (`2025-01` -> `January 2025`).
@@ -91,7 +98,7 @@ class DateUtils {
     final year = int.tryParse(parts[0]);
     final month = int.tryParse(parts[1]);
     if (year == null || month == null || month < 1 || month > 12) return key;
-    return DateFormat('MMMM yyyy').format(DateTime(year, month));
+    return DateFormat('MMMM yyyy', _labelLocale).format(DateTime(year, month));
   }
 
   /// Whole calendar days between two dates, ignoring time-of-day.
