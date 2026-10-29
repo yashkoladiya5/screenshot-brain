@@ -45,8 +45,13 @@ class ExpenseRepository {
   }
 
   Future<List<ExpenseItem>> searchExpenses(String query) async {
-    if (query.isEmpty) return getAllExpenses();
-    final lowerQuery = query.toLowerCase();
+    // A padded query matched nothing but its own spaces, and a whitespace-only
+    // one ("   ", from a cleared field that never fired onChanged) skipped the
+    // early return and searched for a literal space - which drops every
+    // merchant without one. Normalise before deciding.
+    final normalized = query.trim();
+    if (normalized.isEmpty) return getAllExpenses();
+    final lowerQuery = normalized.toLowerCase();
     final all = await getAllExpenses();
     return all.where((e) {
       return (e.merchant?.toLowerCase().contains(lowerQuery) ?? false) ||
@@ -68,7 +73,11 @@ class ExpenseRepository {
     final all = await getAllExpenses();
     final byCategory = <String, double>{};
     for (final e in all) {
-      final cat = e.category ?? 'Other';
+      // Trimming keeps a whitespace-only category from becoming its own
+      // invisible bucket next to 'Other' (model getters already trim, and
+      // AnalyticsService buckets on the trimmed value).
+      final category = (e.category ?? '').trim();
+      final cat = category.isEmpty ? 'Other' : category;
       byCategory[cat] = (byCategory[cat] ?? 0) + (e.amount ?? 0);
     }
     return byCategory;
@@ -76,8 +85,15 @@ class ExpenseRepository {
 
   Future<List<ExpenseItem>> getRecentExpenses({int limit = 10}) async {
     final models = await db.expenseModels.where().findAll();
-    models.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return models.take(limit).map(_toItem).toList();
+    // Id-descending tie-break: `List.sort` leaves equal elements in whatever
+    // order the table scan returned them, so two expenses created in the same
+    // microsecond swapped places between refreshes. `take` also throws
+    // ArgumentError on a negative count, so the limit is floored at zero.
+    models.sort((a, b) {
+      final byNewest = b.createdAt.compareTo(a.createdAt);
+      return byNewest != 0 ? byNewest : b.id.compareTo(a.id);
+    });
+    return models.take(limit < 0 ? 0 : limit).map(_toItem).toList();
   }
 
   Future<void> deleteExpense(int id) async {
