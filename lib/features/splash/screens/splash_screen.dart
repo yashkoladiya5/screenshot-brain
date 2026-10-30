@@ -52,7 +52,17 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    final hasPermission = await PermissionService.hasGalleryPermission();
+    bool hasPermission;
+    try {
+      hasPermission = await PermissionService.hasGalleryPermission();
+    } catch (error) {
+      // A plugin failure (permission channel not implemented, ROM bug) used to
+      // escape into the zone, so the splash never navigated: the user saw the
+      // spinner for the rest of the session. Treat "unknown" as not granted
+      // and let the permissions screen re-ask.
+      debugPrint('[Splash] Permission check failed: $error');
+      hasPermission = false;
+    }
     if (!mounted) return;
     if (hasPermission) {
       context.go('/home');
