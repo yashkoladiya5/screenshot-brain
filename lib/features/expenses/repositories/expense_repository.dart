@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import '../../../core/utils/num_extensions.dart';
 import '../../../services/analytics_service.dart';
 import '../../../services/database_service.dart';
 import '../../../shared/models/expense_model.dart';
@@ -89,7 +90,9 @@ class ExpenseRepository {
     for (final e in all) {
       total += (e.amount ?? 0);
     }
-    return total;
+    // Sum-then-round, like ExpenseSnapshot: a caller comparing this against a
+    // displayed total would otherwise see 334.55999999999995 vs 334.56.
+    return total.roundTo(2);
   }
 
   Future<Map<String, double>> getExpensesByCategory() async {
@@ -146,10 +149,7 @@ class ExpenseRepository {
     final startMonth = AnalyticsService.monthStart(from);
     final endMonth = AnalyticsService.monthStart(to ?? DateTime.now());
     final (_, windowEnd) = monthQueryWindow(endMonth);
-    final models = await _modelsWithEffectiveDateBetween(
-      startMonth,
-      windowEnd,
-    );
+    final models = await _modelsWithEffectiveDateBetween(startMonth, windowEnd);
     return AnalyticsService.monthlyExpenseSeries(models, from: from, to: to);
   }
 
