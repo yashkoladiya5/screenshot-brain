@@ -69,26 +69,42 @@ class CategoriesScreen extends ConsumerWidget {
           // canonical categories on screen and surfacing unknown labels.
           final ordered = orderCategoryCounts(counts, includeEmpty: true);
           final entries = ordered.entries.toList();
-          return GridView.builder(
-            padding: const EdgeInsets.all(SBSpacing.lg),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: SBSpacing.md,
-              mainAxisSpacing: SBSpacing.md,
-              childAspectRatio: 1.3,
-            ),
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final name = entries[index].key;
-              final count = entries[index].value;
-              final (icon, color) = _visualsFor(name);
-              return _CategoryCard(
-                name: name,
-                icon: icon,
-                color: color,
-                count: count,
-              );
+          // Every other list in the app pulls to refresh; the counts are a
+          // FutureProvider that only re-reads on invalidate, so without this
+          // the grid had no way to pick up a scan finished in the background.
+          return RefreshIndicator(
+            onRefresh: () async {
+              try {
+                final reloaded = ref.refresh(categoryCountsProvider.future);
+                await reloaded;
+              } catch (error, stack) {
+                debugPrint(
+                  '[Categories] Pull-to-refresh failed: $error\n$stack',
+                );
+              }
             },
+            child: GridView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(SBSpacing.lg),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: SBSpacing.md,
+                mainAxisSpacing: SBSpacing.md,
+                childAspectRatio: 1.3,
+              ),
+              itemCount: entries.length,
+              itemBuilder: (context, index) {
+                final name = entries[index].key;
+                final count = entries[index].value;
+                final (icon, color) = _visualsFor(name);
+                return _CategoryCard(
+                  name: name,
+                  icon: icon,
+                  color: color,
+                  count: count,
+                );
+              },
+            ),
           );
         },
       ),
