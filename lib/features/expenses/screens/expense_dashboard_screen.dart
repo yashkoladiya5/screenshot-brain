@@ -73,7 +73,18 @@ class _ExpenseDashboardScreenState
           );
         },
         data: (snapshot) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(expenseListProvider),
+          // `ref.invalidate` returns immediately — the spinner retracted
+          // before the reload finished. Await the refreshed future so the
+          // gesture actually means "I have the new numbers", and keep
+          // failures in the log instead of propagating out of onRefresh.
+          onRefresh: () async {
+            try {
+              final reloaded = ref.refresh(expenseListProvider.future);
+              await reloaded;
+            } catch (error, stack) {
+              debugPrint('[Expenses] Pull-to-refresh failed: $error\n$stack');
+            }
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(SBSpacing.lg),
@@ -138,18 +149,24 @@ class _ExpenseDashboardScreenState
             color: theme.colorScheme.outlineVariant,
           ),
           const SizedBox(width: SBSpacing.lg),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _rupeeFormat.format(snapshot.monthlyTotal),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
+          // Unbounded: a seven-figure monthly total pushed this column past
+          // the card edge and threw a RenderFlex overflow.
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _rupeeFormat.format(snapshot.monthlyTotal),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: SBSpacing.xxs),
-              Text('This Month', style: theme.textTheme.bodySmall),
-            ],
+                const SizedBox(height: SBSpacing.xxs),
+                Text('This Month', style: theme.textTheme.bodySmall),
+              ],
+            ),
           ),
         ],
       ),
@@ -228,7 +245,7 @@ class _ExpenseDashboardScreenState
                 ClipRRect(
                   borderRadius: BorderRadius.circular(SBRadius.xs),
                   child: LinearProgressIndicator(
-                    value: percentage / 100,
+                    value: (percentage / 100).clamp(0.0, 1.0),
                     minHeight: 6,
                     backgroundColor: sb.borderLight,
                     color: catColor,
