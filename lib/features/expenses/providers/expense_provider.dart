@@ -7,10 +7,13 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   return ExpenseRepository();
 });
 
+/// Runs of whitespace (spaces, tabs, newlines) — OCR text carries both.
+final RegExp _spaces = RegExp(r'\s+');
+
 /// Normalizes a raw expense search query: trim, collapse whitespace,
 /// lowercase for case-insensitive matching.
 String normalizeExpenseQuery(String raw) =>
-    raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    raw.trim().toLowerCase().replaceAll(_spaces, ' ');
 
 /// Immutable one-pass aggregation over the expense list.
 ///
@@ -88,12 +91,18 @@ class ExpenseSnapshot {
   }
 
   /// Case-insensitive substring search over merchant / category / description.
+  ///
+  /// The item side is whitespace-collapsed the same way the query is: OCR
+  /// writes merchants and notes with runs of spaces and newlines, so a row
+  /// stored as 'Big  Basket' matched 'big basket' only by accident.
   List<ExpenseItem> search(String normalizedQuery) {
     if (normalizedQuery.isEmpty) return expenses;
+    String field(String? value) =>
+        value == null ? '' : value.toLowerCase().replaceAll(_spaces, ' ');
     return expenses.where((e) {
-      return (e.merchant?.toLowerCase().contains(normalizedQuery) ?? false) ||
-          (e.category?.toLowerCase().contains(normalizedQuery) ?? false) ||
-          (e.description?.toLowerCase().contains(normalizedQuery) ?? false);
+      return field(e.merchant).contains(normalizedQuery) ||
+          field(e.category).contains(normalizedQuery) ||
+          field(e.description).contains(normalizedQuery);
     }).toList();
   }
 }
