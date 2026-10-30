@@ -47,7 +47,14 @@ class DatabaseService {
     List<CollectionSchema<dynamic>> schemas,
     String directoryPath,
   ) {
-    return Isar.open(schemas, directory: directoryPath, inspector: true);
+    // The Isar inspector runs a WebSocket server inside the process and is
+    // documented as a development tool; leaving it on in release ships a debug
+    // attach point (and its startup cost) to every user's device.
+    return Isar.open(
+      schemas,
+      directory: directoryPath,
+      inspector: !kReleaseMode,
+    );
   }
 
   static Future<Directory> _defaultDocumentsDirectory() =>
