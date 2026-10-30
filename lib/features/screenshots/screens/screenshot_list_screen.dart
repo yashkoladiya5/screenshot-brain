@@ -273,7 +273,10 @@ class _CategoryFilterBar extends StatelessWidget {
     final counts = categoryCounts.valueOrNull;
     if (counts == null || counts.isEmpty) return const SizedBox.shrink();
 
-    final labels = counts.keys.toList()..sort();
+    // Same ordering the Categories grid uses (count desc, then the canonical
+    // vocabulary, then alphabetical); a plain sort() put the chips in a
+    // different order from the cards the user had just tapped.
+    final labels = orderCategoryCounts(counts).keys.toList();
     return SizedBox(
       key: const Key('categoryFilterChips'),
       height: 44,
