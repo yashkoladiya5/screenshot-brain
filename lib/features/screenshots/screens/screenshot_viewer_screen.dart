@@ -335,6 +335,20 @@ class _GalleryPagerState extends ConsumerState<_GalleryPager> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant _GalleryPager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.screenshots, widget.screenshots)) return;
+    // A delete or a rescan invalidates the family feeding this pager, so the
+    // parent rebuilds with a shorter list while `_items` is still the copy
+    // taken in initState: the pager kept rendering removed rows, and
+    // `_currentIndex` could end up past the new end. Only the data is synced
+    // here - no jumpToPage, which would snap back a swipe in flight.
+    _items = List.of(widget.screenshots);
+    if (_items.isEmpty) return;
+    if (_currentIndex >= _items.length) _currentIndex = _items.length - 1;
+  }
+
   void _onCurrentDeleted(int deletedId) {
     final index = _items.indexWhere((s) => s.id == deletedId);
     if (index < 0) return;
