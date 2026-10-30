@@ -18,17 +18,23 @@ class DateUtils {
   /// Returns a friendly time ago string, e.g., "5 mins ago", "Just now"
   static String timeAgo(DateTime date) {
     final Duration diff = DateTime.now().difference(date);
+    // Calendar days, not elapsed 24-hour blocks: this class documents that
+    // every "day" arithmetic is time-of-day independent, but `Duration.inDays`
+    // floors a 365-day span that crosses a spring-forward to 364, so exactly
+    // one-year-old entries fell into the "months" bucket, and a 30-day span
+    // read as "0 months" against a 31-day one.
+    final days = daysBetween(date, DateTime.now());
 
-    if (diff.inDays > 365) {
-      final years = (diff.inDays / 365).floor();
+    if (days > 365) {
+      final years = (days / 365).floor();
       return '$years ${years == 1 ? 'year' : 'years'} ago';
     }
-    if (diff.inDays > 30) {
-      final months = (diff.inDays / 30).floor();
+    if (days > 30) {
+      final months = (days / 30).floor();
       return '$months ${months == 1 ? 'month' : 'months'} ago';
     }
-    if (diff.inDays > 0) {
-      return diff.inDays == 1 ? '1 day ago' : '${diff.inDays} days ago';
+    if (days > 0) {
+      return days == 1 ? '1 day ago' : '$days days ago';
     }
     if (diff.inHours > 0) {
       return diff.inHours == 1 ? '1 hour ago' : '${diff.inHours} hours ago';
