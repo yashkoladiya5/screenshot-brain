@@ -45,9 +45,12 @@ class FileSettingsPersistence implements SettingsPersistence {
   Future<void> save(AppSettings settings) async {
     try {
       await _file.writeAsString(encodeAppSettings(settings));
-    } catch (error) {
+    } catch (error, stack) {
       // Seam contract: persistence failures never reach the caller.
       debugPrint('[SettingsStore] save failed (ignored): $error');
+      // The exception alone rarely identifies a failed write — the path is
+      // usually a full disk, a revoked sandbox or a concurrent rename.
+      debugPrintStack(stackTrace: stack);
     }
   }
 }
