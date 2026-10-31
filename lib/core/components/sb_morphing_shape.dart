@@ -27,7 +27,11 @@ class _SbMorphingShapeState extends State<SbMorphingShape> with SingleTickerProv
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: (4000 ~/ widget.speedMultiplier)),
+      // A zero multiplier made the truncating division Infinity, and rounding
+      // that throws UnsupportedError out of initState.
+      duration: Duration(
+        milliseconds: (4000 / math.max(0.01, widget.speedMultiplier)).round(),
+      ),
     )..repeat();
   }
 
