@@ -82,11 +82,15 @@ class _SbMarqueeTextState extends State<SbMarqueeText> with SingleTickerProvider
     _animationController.stop();
     _animationController.reset();
 
-    // Duration based on velocity
+    // Duration based on velocity. A zero velocity divided to Infinity and
+    // truncated, which throws; and a zero-length Duration handed to a
+    // controller that then repeat()s spins the ticker at full CPU.
     final distance = _textWidth + widget.blankSpace;
-    final durationSeconds = distance / widget.velocity;
-    
-    _animationController.duration = Duration(milliseconds: (durationSeconds * 1000).toInt());
+    final pixelsPerSecond = widget.velocity <= 0 ? 30.0 : widget.velocity;
+    final durationMs = ((distance / pixelsPerSecond) * 1000).round();
+
+    _animationController.duration =
+        Duration(milliseconds: durationMs < 1 ? 1 : durationMs);
     
     _animationController.forward().then((_) {
       if (mounted && _needsScroll) {
