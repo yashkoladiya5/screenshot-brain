@@ -141,8 +141,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     AppSettings? stored;
     try {
       stored = await persistence.load();
-    } catch (_) {
+    } catch (error, stack) {
       // A store that cannot be read behaves like an empty one: keep defaults.
+      // Without a log this looks exactly like a settings reset the user never
+      // asked for, with nothing to point at.
+      debugPrint('[Settings] Could not read persisted settings: $error');
+      debugPrintStack(stackTrace: stack);
       _restoreApplied = true;
       return;
     }
