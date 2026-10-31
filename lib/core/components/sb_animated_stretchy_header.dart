@@ -15,7 +15,8 @@ class SbAnimatedStretchyHeader extends StatefulWidget {
   });
 
   @override
-  State<SbAnimatedStretchyHeader> createState() => _SbAnimatedStretchyHeaderState();
+  State<SbAnimatedStretchyHeader> createState() =>
+      _SbAnimatedStretchyHeaderState();
 }
 
 class _SbAnimatedStretchyHeaderState extends State<SbAnimatedStretchyHeader> {
@@ -43,14 +44,20 @@ class _SbAnimatedStretchyHeaderState extends State<SbAnimatedStretchyHeader> {
   Widget build(BuildContext context) {
     double currentHeight = widget.expandedHeight;
     double scale = 1.0;
-    
+
     if (_offset < 0) {
       currentHeight = widget.expandedHeight + _offset.abs();
-      scale = 1.0 + (_offset.abs() / widget.expandedHeight);
+      // A zero expandedHeight (collapsing the header away entirely) divided
+      // to Infinity, which scaled the image by Infinity and asserted in
+      // layout instead of just showing it at its natural size.
+      final stretchBase = widget.expandedHeight <= 0
+          ? 1.0
+          : widget.expandedHeight;
+      scale = 1.0 + (_offset.abs() / stretchBase);
     } else {
       currentHeight = (widget.expandedHeight - _offset).clamp(
-        widget.collapsedHeight, 
-        widget.expandedHeight
+        widget.collapsedHeight,
+        widget.expandedHeight,
       );
     }
 
@@ -69,11 +76,13 @@ class _SbAnimatedStretchyHeaderState extends State<SbAnimatedStretchyHeader> {
             ),
           ),
         ),
-        
+
         Positioned.fill(
           child: CustomScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             slivers: [
               SliverToBoxAdapter(
                 child: SizedBox(height: widget.expandedHeight),
