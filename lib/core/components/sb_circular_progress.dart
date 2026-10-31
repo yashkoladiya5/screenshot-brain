@@ -95,7 +95,9 @@ class _SbCircularProgressState extends State<SbCircularProgress> with SingleTick
                 widget.centerChild!
               else if (widget.showPercent)
                 Text(
-                  '${(_animation.value * 100).toInt()}%',
+                  // The sweep arc uses the animated value directly; truncating
+                  // the label made it sit a whole percent behind the ring.
+                  '${(_animation.value.clamp(0.0, 1.0) * 100).round()}%',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
