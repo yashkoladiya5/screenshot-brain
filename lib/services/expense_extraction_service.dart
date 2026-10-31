@@ -145,6 +145,19 @@ class ExpenseExtractionService {
     return _digitRe.allMatches(haystack.substring(start, stop)).length;
   }
 
+  /// Grouping shapes [_parseNumber] recognises, in the order they are tried.
+  /// Compiled once per class: the parser runs for every numeric candidate on
+  /// every OCR line of every screenshot, and per-call compiles dominated it.
+  static final RegExp _westernRe = RegExp(r'^\d{1,3}(,\d{3})+(\.\d{1,2})?$');
+  static final RegExp _indianRe = RegExp(
+    r'^\d{1,3}(,\d{2,3}){2,}(\.\d{1,2})?$',
+  );
+  static final RegExp _europeanRe = RegExp(r'^\d{1,3}(\.\d{3})+(,\d{1,2})?$');
+  static final RegExp _decimalCommaRe = RegExp(r'^\d+,\d{1,2}$');
+  static final RegExp _decimalDotRe = RegExp(r'^\d+\.\d{1,2}$');
+  static final RegExp _plainIntegerRe = RegExp(r'^\d+$');
+  static final RegExp _nonDigitRe = RegExp(r'\D');
+
   static double? _parseNumber(String raw) {
     var s = raw;
     while (s.isNotEmpty && (s.endsWith(',') || s.endsWith('.'))) {
@@ -153,28 +166,28 @@ class ExpenseExtractionService {
     if (s.isEmpty) return null;
 
     double? value;
-    if (RegExp(r'^\d{1,3}(,\d{3})+(\.\d{1,2})?$').hasMatch(s)) {
+    if (_westernRe.hasMatch(s)) {
       // 1,299 / 1,299.90
       value = double.tryParse(s.replaceAll(',', ''));
-    } else if (RegExp(r'^\d{1,3}(,\d{2,3}){2,}(\.\d{1,2})?$').hasMatch(s)) {
+    } else if (_indianRe.hasMatch(s)) {
       // Indian grouping: 1,29,900
       value = double.tryParse(s.replaceAll(',', ''));
-    } else if (RegExp(r'^\d{1,3}(\.\d{3})+(,\d{1,2})?$').hasMatch(s)) {
+    } else if (_europeanRe.hasMatch(s)) {
       // 1.299 / 1.299,90 (European)
       value = double.tryParse(s.replaceAll('.', '').replaceFirst(',', '.'));
-    } else if (RegExp(r'^\d+,\d{1,2}$').hasMatch(s)) {
+    } else if (_decimalCommaRe.hasMatch(s)) {
       // 1299,90 (decimal comma)
       value = double.tryParse(s.replaceFirst(',', '.'));
-    } else if (RegExp(r'^\d+\.\d{1,2}$').hasMatch(s)) {
+    } else if (_decimalDotRe.hasMatch(s)) {
       // 1299.90
       value = double.tryParse(s);
-    } else if (RegExp(r'^\d+$').hasMatch(s)) {
+    } else if (_plainIntegerRe.hasMatch(s)) {
       value = double.tryParse(s);
     } else {
       return null; // malformed grouping like 1,29990
     }
 
-    final digits = s.replaceAll(RegExp(r'\D'), '');
+    final digits = s.replaceAll(_nonDigitRe, '');
     if (digits.length > _maxAmountDigits) return null;
     if (value == null || !value.isFinite || value <= 0) return null;
     return value;
