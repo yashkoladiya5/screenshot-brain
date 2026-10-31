@@ -11,7 +11,8 @@ class SbStretchyHeader extends StatefulWidget {
     required this.header,
     required this.body,
     this.expandedHeight = 250.0,
-    this.collapsedHeight = kToolbarHeight + 40.0, // Default appbar + some padding
+    this.collapsedHeight =
+        kToolbarHeight + 40.0, // Default appbar + some padding
   });
 
   @override
@@ -43,19 +44,25 @@ class _SbStretchyHeaderState extends State<SbStretchyHeader> {
   Widget build(BuildContext context) {
     // When scrollOffset is negative, we are overscrolling the top
     final double overscroll = _scrollOffset < 0 ? _scrollOffset.abs() : 0.0;
-    
+
     // Total height of the header area changes if we overscroll
-    final double currentHeaderHeight = (widget.expandedHeight + overscroll).clamp(
-      widget.collapsedHeight, 
-      double.infinity
-    );
-    
+    final double currentHeaderHeight = (widget.expandedHeight + overscroll)
+        .clamp(widget.collapsedHeight, double.infinity);
+
     // Scale factor for the background image/widget to make it zoom in as it stretches
-    final double scale = 1.0 + (overscroll / widget.expandedHeight);
-    
+    // A zero expandedHeight divided to Infinity, which scaled the header to
+    // an Infinity-high box and asserted in layout.
+    final stretchBase = widget.expandedHeight <= 0
+        ? 1.0
+        : widget.expandedHeight;
+    final double scale = 1.0 + (overscroll / stretchBase);
+
     // How much the header should slide up under the status bar when scrolling down
-    final double headerTranslationY = _scrollOffset > 0 
-        ? -_scrollOffset.clamp(0.0, widget.expandedHeight - widget.collapsedHeight)
+    final double headerTranslationY = _scrollOffset > 0
+        ? -_scrollOffset.clamp(
+            0.0,
+            widget.expandedHeight - widget.collapsedHeight,
+          )
         : 0.0;
 
     return Stack(
@@ -64,11 +71,11 @@ class _SbStretchyHeaderState extends State<SbStretchyHeader> {
         // We push the content down by the expandedHeight so it starts below the header
         ListView(
           controller: _scrollController,
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           padding: EdgeInsets.only(top: widget.expandedHeight),
-          children: [
-            widget.body,
-          ],
+          children: [widget.body],
         ),
 
         // 2. The Stretchy Header
