@@ -29,7 +29,10 @@ class _SbWaveAnimationState extends State<SbWaveAnimation> with SingleTickerProv
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: (2000 / widget.speed).round()),
+      // speed is public and zero divided to Infinity, whose round() throws.
+      duration: Duration(
+        milliseconds: (2000 / math.max(0.01, widget.speed)).round(),
+      ),
     )..repeat();
   }
 
@@ -37,7 +40,9 @@ class _SbWaveAnimationState extends State<SbWaveAnimation> with SingleTickerProv
   void didUpdateWidget(SbWaveAnimation oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.speed != oldWidget.speed) {
-      _controller.duration = Duration(milliseconds: (2000 / widget.speed).round());
+      _controller.duration = Duration(
+        milliseconds: (2000 / math.max(0.01, widget.speed)).round(),
+      );
       _controller.repeat();
     }
   }
