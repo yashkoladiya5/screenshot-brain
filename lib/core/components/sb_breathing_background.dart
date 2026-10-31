@@ -55,6 +55,15 @@ class _SbBreathingBackgroundState extends State<SbBreathingBackground> with Sing
         // Rotate slowly
         final double rotation = phase * 2 * math.pi;
 
+        // SweepGradient asserts on fewer than two colors, and the stops below
+        // divided by (length - 1) — which is zero for a single color, making
+        // every stop NaN. Two identical colors render as a flat fill, and the
+        // gradient distributes stops evenly on its own.
+        final base = widget.colors.isEmpty
+            ? const [Colors.transparent]
+            : widget.colors;
+        final colors = base.length > 1 ? base : [base.first, base.first];
+
         return Stack(
           children: [
             // The animated gradient background
@@ -68,11 +77,8 @@ class _SbBreathingBackgroundState extends State<SbBreathingBackground> with Sing
                       decoration: BoxDecoration(
                         gradient: SweepGradient(
                           center: Alignment.center,
-                          colors: widget.colors,
-                          stops: List.generate(
-                            widget.colors.length, 
-                            (index) => index / (widget.colors.length - 1)
-                          ),
+                          colors: colors,
+                          stops: null,
                         ),
                       ),
                     ),
