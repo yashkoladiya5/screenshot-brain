@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/num_extensions.dart';
 import '../providers/home_provider.dart';
 import '../../screenshots/providers/screenshot_provider.dart';
 import '../../expenses/models/expense_item.dart';
@@ -271,8 +271,7 @@ class _StatsGrid extends StatelessWidget {
               child: SbStatCard(
                 icon: Icons.calendar_month_rounded,
                 label: 'This Month',
-                value:
-                    '\u20b9${NumberFormat('#,##0').format(stats.monthlyExpenses)}',
+                value: stats.monthlyExpenses.toIndianRupees(),
                 color: AppColors.primary,
               ),
             ),
@@ -282,7 +281,7 @@ class _StatsGrid extends StatelessWidget {
         SbStatCard(
           icon: Icons.account_balance_wallet_rounded,
           label: 'Total Spent',
-          value: '\u20b9${NumberFormat('#,##0').format(stats.totalExpenses)}',
+          value: stats.totalExpenses.toIndianRupees(),
           color: AppColors.success,
         ),
       ],
@@ -331,7 +330,7 @@ class _CategoryBreakdown extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '\u20b9${NumberFormat('#,##0').format(entry.value)}',
+                  entry.value.toIndianRupees(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
