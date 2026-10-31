@@ -64,7 +64,12 @@ class _SbInteractiveBlackHoleState extends State<SbInteractiveBlackHole> with Si
     setState(() {
       // The black hole pulses slightly
       if (!_isDragging) {
-        _holeMass = 10.0 + math.sin(_controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0 / 200) * 2.0;
+        // `?? 0 / 200` binds as `?? (0 / 200)`, so the raw millisecond count
+        // went into sin() instead of the intended slow time base and the hole
+        // jittered at hundreds of cycles a second rather than pulsing.
+        final elapsedMs =
+            _controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0.0;
+        _holeMass = 10.0 + math.sin(elapsedMs / 200) * 2.0;
       }
 
       for (final particle in _particles) {
