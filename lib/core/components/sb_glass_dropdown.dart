@@ -38,7 +38,8 @@ class SbGlassDropdown<T> extends StatefulWidget {
   State<SbGlassDropdown<T>> createState() => _SbGlassDropdownState<T>();
 }
 
-class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTickerProviderStateMixin {
+class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>>
+    with SingleTickerProviderStateMixin {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
@@ -77,19 +78,20 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
-    
+
     // Determine if we should open upwards or downwards based on screen space
     final double screenHeight = MediaQuery.of(context).size.height;
     final double spaceBelow = screenHeight - offset.dy - size.height;
-    
+
     // Estimate menu height (max 250px or item count * 50px)
-    final double menuHeight = (widget.items.length * 50.0).clamp(50.0, 250.0) + 16.0;
-    
+    final double menuHeight =
+        (widget.items.length * 50.0).clamp(50.0, 250.0) + 16.0;
+
     final bool openUpwards = spaceBelow < menuHeight && offset.dy > spaceBelow;
 
     _overlayEntry = _createOverlayEntry(size, menuHeight, openUpwards);
     Overlay.of(context).insert(_overlayEntry!);
-    
+
     setState(() => _isOpen = true);
     _animationController.forward();
   }
@@ -102,9 +104,14 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
     });
   }
 
-  OverlayEntry _createOverlayEntry(Size size, double menuHeight, bool openUpwards) {
+  OverlayEntry _createOverlayEntry(
+    Size size,
+    double menuHeight,
+    bool openUpwards,
+  ) {
     final theme = Theme.of(context);
-    final tint = widget.tintColor ?? theme.colorScheme.surface.withValues(alpha: 0.4);
+    final tint =
+        widget.tintColor ?? theme.colorScheme.surface.withValues(alpha: 0.4);
 
     return OverlayEntry(
       builder: (context) => Stack(
@@ -122,7 +129,10 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
             child: CompositedTransformFollower(
               link: _layerLink,
               showWhenUnlinked: false,
-              offset: Offset(0, openUpwards ? -menuHeight - 8 : size.height + 8),
+              offset: Offset(
+                0,
+                openUpwards ? -menuHeight - 8 : size.height + 8,
+              ),
               child: Material(
                 color: Colors.transparent,
                 child: SizeTransition(
@@ -132,7 +142,9 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
                     constraints: BoxConstraints(maxHeight: menuHeight),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(SBRadius.md),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.1),
@@ -145,8 +157,8 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
                       borderRadius: BorderRadius.circular(SBRadius.md),
                       child: BackdropFilter(
                         filter: ImageFilter.blur(
-                          sigmaX: widget.blurSigma, 
-                          sigmaY: widget.blurSigma
+                          sigmaX: widget.blurSigma,
+                          sigmaY: widget.blurSigma,
                         ),
                         child: Container(
                           color: tint,
@@ -157,7 +169,7 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
                             itemBuilder: (context, index) {
                               final item = widget.items[index];
                               final isSelected = item.value == widget.value;
-                              
+
                               return InkWell(
                                 onTap: () {
                                   widget.onChanged?.call(item.value);
@@ -165,29 +177,40 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: SBSpacing.md, 
+                                    horizontal: SBSpacing.md,
                                     vertical: 12,
                                   ),
-                                  color: isSelected 
-                                      ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                                  color: isSelected
+                                      ? theme.colorScheme.primary.withValues(
+                                          alpha: 0.15,
+                                        )
                                       : Colors.transparent,
                                   child: Row(
                                     children: [
                                       if (item.icon != null) ...[
                                         Icon(
-                                          item.icon, 
-                                          size: 18, 
-                                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                                          item.icon,
+                                          size: 18,
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.onSurface,
                                         ),
                                         const SizedBox(width: 12),
                                       ],
                                       Expanded(
                                         child: Text(
                                           item.label,
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-                                          ),
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: isSelected
+                                                    ? theme.colorScheme.primary
+                                                    : theme
+                                                          .colorScheme
+                                                          .onSurface,
+                                              ),
                                         ),
                                       ),
                                     ],
@@ -212,14 +235,14 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tint = widget.tintColor ?? theme.colorScheme.surface.withValues(alpha: 0.4);
-    
-    SbGlassDropdownItem<T>? selectedItem;
-    try {
-      selectedItem = widget.items.firstWhere((item) => item.value == widget.value);
-    } catch (_) {
-      selectedItem = null;
-    }
+    final tint =
+        widget.tintColor ?? theme.colorScheme.surface.withValues(alpha: 0.4);
+
+    // firstWhere throws when nothing matches, so an unselected dropdown -
+    // the common initial state - built and discarded an exception on every
+    // single frame.
+    final matches = widget.items.where((item) => item.value == widget.value);
+    final selectedItem = matches.isEmpty ? null : matches.first;
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -241,7 +264,10 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
           child: ClipRRect(
             borderRadius: BorderRadius.circular(SBRadius.md),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: widget.blurSigma, sigmaY: widget.blurSigma),
+              filter: ImageFilter.blur(
+                sigmaX: widget.blurSigma,
+                sigmaY: widget.blurSigma,
+              ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md),
                 color: tint,
@@ -255,14 +281,17 @@ class _SbGlassDropdownState<T> extends State<SbGlassDropdown<T>> with SingleTick
                       child: Text(
                         selectedItem?.label ?? widget.hint,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: selectedItem == null 
-                              ? theme.colorScheme.onSurfaceVariant 
+                          color: selectedItem == null
+                              ? theme.colorScheme.onSurfaceVariant
                               : theme.colorScheme.onSurface,
                         ),
                       ),
                     ),
                     RotationTransition(
-                      turns: Tween(begin: 0.0, end: 0.5).animate(_animationController),
+                      turns: Tween(
+                        begin: 0.0,
+                        end: 0.5,
+                      ).animate(_animationController),
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
                         color: theme.colorScheme.onSurfaceVariant,
