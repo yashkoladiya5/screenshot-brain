@@ -52,11 +52,15 @@ class _SbScrollingTextTickerState extends State<SbScrollingTextTicker> with Sing
     }
 
     final distanceToScroll = maxExtent - currentPosition;
-    final durationSeconds = distanceToScroll / widget.velocity;
+    // A zero velocity divided to Infinity, and Infinity.toInt() throws
+    // UnsupportedError inside this callback, so the ticker never scrolled and
+    // only logged.
+    final pixelsPerSecond = widget.velocity <= 0 ? 30.0 : widget.velocity;
+    final durationMs = ((distanceToScroll / pixelsPerSecond) * 1000).round();
 
     _scrollController.animateTo(
       maxExtent,
-      duration: Duration(milliseconds: (durationSeconds * 1000).toInt()),
+      duration: Duration(milliseconds: durationMs < 1 ? 1 : durationMs),
       curve: Curves.linear,
     ).then((_) {
       if (!mounted) return;
