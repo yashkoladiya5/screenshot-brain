@@ -46,9 +46,14 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
         children: List.generate(widget.items.length, (index) {
           final bool isActive = _activeIndex == index;
           final item = widget.items[index];
-          
+
           return Expanded(
-            flex: (isActive ? widget.expandedFlex * 10 : widget.collapsedFlex * 10).toInt(),
+            // Scaled by ten and truncated: any flex below 0.1 (the natural way
+            // to express a subtle collapse) became 0, and Expanded asserts that
+            // flex is greater than zero, so the whole row threw.
+            flex: ((isActive ? widget.expandedFlex : widget.collapsedFlex) * 10)
+                .round()
+                .clamp(1, 1000),
             child: GestureDetector(
               onTap: () {
                 setState(() {
@@ -67,9 +72,12 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                     image: item.image,
                     fit: BoxFit.cover,
                     // Slightly darken inactive cards
-                    colorFilter: isActive 
-                        ? null 
-                        : ColorFilter.mode(Colors.black.withValues(alpha: 0.3), BlendMode.darken),
+                    colorFilter: isActive
+                        ? null
+                        : ColorFilter.mode(
+                            Colors.black.withValues(alpha: 0.3),
+                            BlendMode.darken,
+                          ),
                   ),
                   boxShadow: [
                     if (isActive)
@@ -107,7 +115,7 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                           ),
                         ),
                       ),
-                      
+
                       // Content (Text & custom widget)
                       Positioned(
                         bottom: SBSpacing.lg,
@@ -117,17 +125,22 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                           opacity: isActive ? 1.0 : 0.0,
                           duration: const Duration(milliseconds: 400),
                           // Delay the text fade in slightly for a smoother sequence
-                          curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+                          curve: const Interval(
+                            0.2,
+                            1.0,
+                            curve: Curves.easeOut,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 item.title,
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -135,9 +148,12 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                                 const SizedBox(height: 4),
                                 Text(
                                   item.subtitle!,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                      ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -145,12 +161,12 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                               if (item.content != null) ...[
                                 const SizedBox(height: SBSpacing.md),
                                 item.content!,
-                              ]
+                              ],
                             ],
                           ),
                         ),
                       ),
-                      
+
                       // Vertical text for collapsed state
                       if (!isActive)
                         Positioned.fill(
@@ -159,10 +175,13 @@ class _SbExpandingCardsState extends State<SbExpandingCards> {
                               quarterTurns: 3, // Rotate 270 degrees
                               child: Text(
                                 item.title,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
