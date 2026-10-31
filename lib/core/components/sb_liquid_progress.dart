@@ -97,7 +97,9 @@ class _SbLiquidProgressState extends State<SbLiquidProgress> with SingleTickerPr
                 if (widget.showPercentage)
                   Center(
                     child: Text(
-                      '${(fillValue * 100).toInt()}%',
+                      // Rounds instead of truncating so the number matches the
+                      // liquid level it sits on.
+                      '${(fillValue.clamp(0.0, 1.0) * 100).round()}%',
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         // MixBlendMode equivalent in Flutter is tricky for text over dynamic backgrounds.
