@@ -84,7 +84,12 @@ AppSettings? decodeAppSettings(String raw) {
           : 24,
       themeMode: _themeModeFromName(decoded['themeMode']) ?? ThemeMode.system,
     );
-  } catch (_) {
+  } catch (error, stack) {
+    // Returning null is the right user-facing behaviour, but a settings file
+    // that will not parse must leave a trace: otherwise every preference the
+    // user set silently reverts with nothing to point at.
+    debugPrint('[SettingsStore] settings file could not be parsed: $error');
+    debugPrintStack(stackTrace: stack);
     return null;
   }
 }
