@@ -100,9 +100,13 @@ class _Sb3DCardState extends State<Sb3DCard>
         : center;
 
     // Calculate rotation angles
-    // Normalize coordinates so center is (0,0), ranging from -1 to 1
-    final normalizedX = ((activePosition.dx / widget.width) * 2) - 1;
-    final normalizedY = ((activePosition.dy / widget.height) * 2) - 1;
+    // Normalize coordinates so center is (0,0), ranging from -1 to 1. A zero
+    // width or height made that 0/0, and NaN survived the clamp below, tilting
+    // the card by NaN radians instead of leaving it flat.
+    final safeWidth = widget.width == 0 ? 1.0 : widget.width;
+    final safeHeight = widget.height == 0 ? 1.0 : widget.height;
+    final normalizedX = ((activePosition.dx / safeWidth) * 2) - 1;
+    final normalizedY = ((activePosition.dy / safeHeight) * 2) - 1;
 
     // Clamp values to prevent extreme flipping if pointer goes way outside
     final clampedX = normalizedX.clamp(-1.0, 1.0);
