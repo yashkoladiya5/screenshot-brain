@@ -165,7 +165,14 @@ class _SbParticleTextState extends State<SbParticleText> with SingleTickerProvid
     final double dx = x2 - x1;
     final double dy = y2 - y1;
     final double length = math.sqrt((dx * dx) + (dy * dy));
-    final int numPoints = (length / widget.particleDensity).ceil();
+    // density of zero divided to Infinity and ceil() throws; and a segment
+    // shorter than the spacing gave zero points, whose i / numPoints below is
+    // then 0/0 - NaN offsets scattered the glyph instead of drawing it.
+    final int numPoints = (length / math.max(0.1, widget.particleDensity)).ceil();
+    if (numPoints <= 0) {
+      points.add(Offset(x1, y1));
+      return;
+    }
     
     for (int i = 0; i <= numPoints; i++) {
       final double t = i / numPoints;
