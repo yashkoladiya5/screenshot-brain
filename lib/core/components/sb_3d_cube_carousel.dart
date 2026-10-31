@@ -48,8 +48,13 @@ class _Sb3DCubeCarouselState extends State<Sb3DCubeCarousel> {
     while (_isAutoPlaying) {
       await Future.delayed(widget.autoPlayInterval);
       if (!mounted || !_isAutoPlaying) break;
-      
-      final int nextPage = ((_pageController.page ?? 0) + 1).toInt() % widget.children.length;
+      if (widget.children.isEmpty) break;
+
+      // `page` is the fractional scroll position, so mid-flight it can be 1.7.
+      // Truncating (page + 1) turned that into 2 and the deck skipped a card
+      // every time the timer landed between pages.
+      final int settledPage = (_pageController.page ?? 0).round();
+      final int nextPage = (settledPage + 1) % widget.children.length;
       _pageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 800),
