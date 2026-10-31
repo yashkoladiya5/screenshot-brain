@@ -76,7 +76,9 @@ class _SbLiquidCircularProgressState extends State<SbLiquidCircularProgress> wit
           
           // The text overlay indicating percentage
           Text(
-            '${(widget.progress.clamp(0.0, 1.0) * 100).toInt()}%',
+            // Rounds rather than truncates: 0.29 of fill printed 28 percent
+            // while the liquid level it labels was drawn at 29.
+            '${(widget.progress.clamp(0.0, 1.0) * 100).round()}%',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
