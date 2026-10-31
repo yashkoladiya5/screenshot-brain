@@ -58,8 +58,15 @@ class _SbAnimatedListWrapperState extends State<SbAnimatedListWrapper> with Sing
       itemCount: widget.children.length,
       itemBuilder: (context, index) {
         // Calculate the start and end time for this specific item's animation
-        final double start = (widget.staggerDuration.inMilliseconds * index) / _controller.duration!.inMilliseconds;
-        final double end = start + (widget.itemDuration.inMilliseconds / _controller.duration!.inMilliseconds);
+        // Both knobs are public and nullable-by-value: passing Duration.zero
+        // to skip the animation made the total zero, and dividing by it
+        // produced NaN intervals that Interval asserts on.
+        final totalMs = _controller.duration!.inMilliseconds;
+        if (totalMs <= 0) {
+          return widget.children[index];
+        }
+        final double start = (widget.staggerDuration.inMilliseconds * index) / totalMs;
+        final double end = start + (widget.itemDuration.inMilliseconds / totalMs);
         
         final Animation<double> opacityAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
           CurvedAnimation(
