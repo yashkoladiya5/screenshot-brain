@@ -21,10 +21,20 @@ class SbMonthPicker extends StatefulWidget {
 
 class _SbMonthPickerState extends State<SbMonthPicker> {
   late DateTime _currentDate;
-  
+
   static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -41,12 +51,18 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
 
   void _selectMonth(int monthIndex) {
     final newDate = DateTime(_currentDate.year, monthIndex + 1);
-    
+
     // Check bounds
-    if (widget.firstDate != null && newDate.isBefore(DateTime(widget.firstDate!.year, widget.firstDate!.month))) {
+    if (widget.firstDate != null &&
+        newDate.isBefore(
+          DateTime(widget.firstDate!.year, widget.firstDate!.month),
+        )) {
       return;
     }
-    if (widget.lastDate != null && newDate.isAfter(DateTime(widget.lastDate!.year, widget.lastDate!.month))) {
+    if (widget.lastDate != null &&
+        newDate.isAfter(
+          DateTime(widget.lastDate!.year, widget.lastDate!.month),
+        )) {
       return;
     }
 
@@ -58,10 +74,14 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
 
   bool _isMonthDisabled(int monthIndex) {
     final date = DateTime(_currentDate.year, monthIndex + 1);
-    if (widget.firstDate != null && date.isBefore(DateTime(widget.firstDate!.year, widget.firstDate!.month))) {
+    if (widget.firstDate != null &&
+        date.isBefore(
+          DateTime(widget.firstDate!.year, widget.firstDate!.month),
+        )) {
       return true;
     }
-    if (widget.lastDate != null && date.isAfter(DateTime(widget.lastDate!.year, widget.lastDate!.month))) {
+    if (widget.lastDate != null &&
+        date.isAfter(DateTime(widget.lastDate!.year, widget.lastDate!.month))) {
       return true;
     }
     return false;
@@ -82,9 +102,11 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
-          )
+          ),
         ],
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -117,9 +139,13 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              childAspectRatio: 1.5,
+              // The fixed 1.5 ratio sizes each tile for the default font
+              // scale: at the system large-font settings 'September' wrapped
+              // onto a second line and overflowed its own cell.
+              childAspectRatio:
+                  1.5 / MediaQuery.textScalerOf(context).scale(1.0),
               crossAxisSpacing: SBSpacing.sm,
               mainAxisSpacing: SBSpacing.sm,
             ),
@@ -129,7 +155,13 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
               final isDisabled = _isMonthDisabled(index);
 
               return Material(
-                color: isSelected ? colorScheme.primary : (isDisabled ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3) : Colors.transparent),
+                color: isSelected
+                    ? colorScheme.primary
+                    : (isDisabled
+                          ? colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.3,
+                            )
+                          : Colors.transparent),
                 borderRadius: BorderRadius.circular(SBRadius.md),
                 child: InkWell(
                   onTap: isDisabled ? null : () => _selectMonth(index),
@@ -138,10 +170,16 @@ class _SbMonthPickerState extends State<SbMonthPicker> {
                     child: Text(
                       _months[index],
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isSelected 
-                            ? colorScheme.onPrimary 
-                            : (isDisabled ? colorScheme.onSurfaceVariant.withValues(alpha: 0.3) : colorScheme.onSurface),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : (isDisabled
+                                  ? colorScheme.onSurfaceVariant.withValues(
+                                      alpha: 0.3,
+                                    )
+                                  : colorScheme.onSurface),
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
