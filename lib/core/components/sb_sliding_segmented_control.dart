@@ -47,7 +47,12 @@ class _SbSlidingSegmentedControlState extends State<SbSlidingSegmentedControl> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double maxWidth = widget.width == double.infinity ? constraints.maxWidth : widget.width;
-        final double segmentWidth = (maxWidth - 4) / widget.segments.length;
+        // Empty segments divided to Infinity, and the thumb then used that as
+        // both its width and its offset — layout asserts on a non-finite
+        // constraint. Zero width keeps the bar inert until segments arrive.
+        final double segmentWidth = widget.segments.isEmpty
+            ? 0.0
+            : (maxWidth - 4) / widget.segments.length;
 
         return Container(
           width: maxWidth,
