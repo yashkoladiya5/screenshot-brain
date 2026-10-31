@@ -83,45 +83,66 @@ class CategoryScreenshotsScreen extends ConsumerWidget {
               subtitle: 'Screenshots in this category will appear here',
             );
           }
-          return GridView.builder(
-            padding: const EdgeInsets.all(SBSpacing.sm),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: SBSpacing.xs,
-              mainAxisSpacing: SBSpacing.xs,
-              childAspectRatio: 0.72,
-            ),
-            itemCount: screenshots.length,
-            itemBuilder: (context, index) {
-              final screenshot = screenshots[index];
-              return GestureDetector(
-                onTap: () => context.push(
-                  '/viewer/${screenshot.id}?category=${Uri.encodeComponent(categoryName)}',
-                ),
-                child: Hero(
-                  tag: 'screenshot_${screenshot.id}',
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(SBRadius.sm),
-                    child: Image(
-                      // Same bound the screenshot grid uses: the codec decodes
-                      // at _thumbDecodeWidth instead of the capture's real
-                      // width, so the library can hold thousands of tiles.
-                      image: ResizeImage(
-                        FileImage(File(screenshot.filePath)),
-                        width: _thumbDecodeWidth,
-                      ),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        child: const Icon(Icons.broken_image_rounded, size: 24),
+          // Same gap the categories grid had: this list is a FutureProvider
+          // that only re-reads on invalidate, and nothing here could trigger
+          // one, so a scan finishing in the background stayed invisible.
+          return RefreshIndicator(
+            onRefresh: () async {
+              try {
+                final reloaded = ref.refresh(
+                  screenshotsByCategoryProvider(categoryName).future,
+                );
+                await reloaded;
+              } catch (error, stack) {
+                debugPrint(
+                  '[CategoryScreenshots] Pull-to-refresh failed: $error\n$stack',
+                );
+              }
+            },
+            child: GridView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(SBSpacing.sm),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: SBSpacing.xs,
+                mainAxisSpacing: SBSpacing.xs,
+                childAspectRatio: 0.72,
+              ),
+              itemCount: screenshots.length,
+              itemBuilder: (context, index) {
+                final screenshot = screenshots[index];
+                return GestureDetector(
+                  onTap: () => context.push(
+                    '/viewer/${screenshot.id}?category=${Uri.encodeComponent(categoryName)}',
+                  ),
+                  child: Hero(
+                    tag: 'screenshot_${screenshot.id}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(SBRadius.sm),
+                      child: Image(
+                        // Same bound the screenshot grid uses: the codec decodes
+                        // at _thumbDecodeWidth instead of the capture's real
+                        // width, so the library can hold thousands of tiles.
+                        image: ResizeImage(
+                          FileImage(File(screenshot.filePath)),
+                          width: _thumbDecodeWidth,
+                        ),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: const Icon(
+                            Icons.broken_image_rounded,
+                            size: 24,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
