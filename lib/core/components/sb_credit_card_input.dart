@@ -77,13 +77,15 @@ class _CreditCardFormatter extends TextInputFormatter {
       return newValue;
     }
 
+    // Regroup from the digits only. The old loop walked the incoming string,
+    // which still carries the separators this formatter inserted, and added a
+    // space after every 4th *character*: '1234 5678' + '9' came back as
+    // '1234  56,78 9'-style double spaces with the groups drifting by one.
+    final digits = text.replaceAll(RegExp(r'\D'), '');
     final buffer = StringBuffer();
-    for (int i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      final nonZeroIndex = i + 1;
-      if (nonZeroIndex % 4 == 0 && nonZeroIndex != text.length) {
-        buffer.write(' '); // Add a space after every 4th digit
-      }
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
     }
 
     final string = buffer.toString();
