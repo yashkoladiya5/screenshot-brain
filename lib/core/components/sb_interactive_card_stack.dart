@@ -22,13 +22,14 @@ class SbInteractiveCardStack extends StatefulWidget {
   State<SbInteractiveCardStack> createState() => _SbInteractiveCardStackState();
 }
 
-class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with SingleTickerProviderStateMixin {
+class _SbInteractiveCardStackState extends State<SbInteractiveCardStack>
+    with SingleTickerProviderStateMixin {
   late List<Widget> _currentCards;
-  
+
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
   double _dragAngle = 0.0;
-  
+
   late AnimationController _snapController;
   late Animation<Offset> _snapAnimation;
   late Animation<double> _angleAnimation;
@@ -38,7 +39,7 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
     super.initState();
     // Reverse the list so the first item visually appears on top of the stack
     _currentCards = List.from(widget.cards.reversed);
-    
+
     _snapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -74,7 +75,7 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
     setState(() {
       _dragOffset += details.delta;
       // Rotate card slightly based on X drag distance
-      _dragAngle = (_dragOffset.dx / widget.cardWidth) * 0.2; 
+      _dragAngle = (_dragOffset.dx / widget.cardWidth) * 0.2;
     });
   }
 
@@ -86,25 +87,31 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
 
     final double screenWidth = MediaQuery.of(context).size.width;
     final double escapeThreshold = widget.cardWidth * 0.4;
-    
+
     // Check if swiped far enough or fast enough
-    if (_dragOffset.dx.abs() > escapeThreshold || details.velocity.pixelsPerSecond.dx.abs() > 1000) {
+    if (_dragOffset.dx.abs() > escapeThreshold ||
+        details.velocity.pixelsPerSecond.dx.abs() > 1000) {
       // Swiped away!
-      final bool isRightSwipe = _dragOffset.dx > 0 || details.velocity.pixelsPerSecond.dx > 1000;
-      
+      final bool isRightSwipe =
+          _dragOffset.dx > 0 || details.velocity.pixelsPerSecond.dx > 1000;
+
       // Calculate offscreen endpoint
       final double endX = isRightSwipe ? screenWidth : -screenWidth;
-      final double endY = _dragOffset.dy + (details.velocity.pixelsPerSecond.dy * 0.3);
+      final double endY =
+          _dragOffset.dy + (details.velocity.pixelsPerSecond.dy * 0.3);
 
-      _snapAnimation = Tween<Offset>(
-        begin: _dragOffset,
-        end: Offset(endX, endY),
-      ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOut));
-      
-      _angleAnimation = Tween<double>(
-        begin: _dragAngle,
-        end: isRightSwipe ? 0.5 : -0.5,
-      ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOut));
+      _snapAnimation =
+          Tween<Offset>(begin: _dragOffset, end: Offset(endX, endY)).animate(
+            CurvedAnimation(parent: _snapController, curve: Curves.easeOut),
+          );
+
+      _angleAnimation =
+          Tween<double>(
+            begin: _dragAngle,
+            end: isRightSwipe ? 0.5 : -0.5,
+          ).animate(
+            CurvedAnimation(parent: _snapController, curve: Curves.easeOut),
+          );
 
       _snapController.forward(from: 0.0).then((_) {
         // Remove the top card (which is the last in the list)
@@ -114,25 +121,23 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
           _dragOffset = Offset.zero;
           _dragAngle = 0.0;
         });
-        
+
         widget.onSwipe?.call(removedIndex, isRightSwipe);
-        
+
         if (_currentCards.isEmpty) {
           widget.onStackEmpty?.call();
         }
       });
-      
     } else {
       // Snap back to center
-      _snapAnimation = Tween<Offset>(
-        begin: _dragOffset,
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _snapController, curve: Curves.elasticOut));
-      
-      _angleAnimation = Tween<double>(
-        begin: _dragAngle,
-        end: 0.0,
-      ).animate(CurvedAnimation(parent: _snapController, curve: Curves.elasticOut));
+      _snapAnimation = Tween<Offset>(begin: _dragOffset, end: Offset.zero)
+          .animate(
+            CurvedAnimation(parent: _snapController, curve: Curves.elasticOut),
+          );
+
+      _angleAnimation = Tween<double>(begin: _dragAngle, end: 0.0).animate(
+        CurvedAnimation(parent: _snapController, curve: Curves.elasticOut),
+      );
 
       _snapController.addListener(_updateSnapState);
       _snapController.forward(from: 0.0).then((_) {
@@ -140,7 +145,7 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
       });
     }
   }
-  
+
   void _updateSnapState() {
     setState(() {
       _dragOffset = _snapAnimation.value;
@@ -154,9 +159,7 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
       return SizedBox(
         width: widget.cardWidth,
         height: widget.cardHeight,
-        child: const Center(
-          child: Text('No more cards'),
-        ),
+        child: const Center(child: Text('No more cards')),
       );
     }
 
@@ -168,27 +171,39 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
         children: _currentCards.asMap().entries.map((entry) {
           final int idx = entry.key;
           final Widget card = entry.value;
-          
+
           final bool isTopCard = idx == _currentCards.length - 1;
-          
+
           // Background cards scale down and shift down slightly
           final int depthIndex = _currentCards.length - 1 - idx;
-          
+
           // Calculate scale and translation for background cards
           double scale = 1.0;
           double translateY = 0.0;
-          
+
           if (!isTopCard) {
             // As top card is dragged, the next card scales up to become the new top card
-            final double dragPercent = (_dragOffset.dx.abs() / (widget.cardWidth * 0.5)).clamp(0.0, 1.0);
-            
+            // A zero cardWidth divided to Infinity, and clamp only rejects
+            // values above 1.0 once they are finite - Infinity clamps to 1.0
+            // but NaN from 0/0 does not, so the neighbour cards tilted by a
+            // NaN scale and translation.
+            final dragSpan = widget.cardWidth * 0.5;
+            final double dragPercent =
+                (_dragOffset.dx.abs() / (dragSpan <= 0 ? 1.0 : dragSpan)).clamp(
+                  0.0,
+                  1.0,
+                );
+
             // Current depth offset minus the progress of the top card dragging away
-            final double effectiveDepth = math.max(0.0, depthIndex - dragPercent);
-            
+            final double effectiveDepth = math.max(
+              0.0,
+              depthIndex - dragPercent,
+            );
+
             scale = 1.0 - (effectiveDepth * 0.05);
             translateY = effectiveDepth * 15.0;
           }
-          
+
           // Apply drag transformations only to the top card
           final Offset offset = isTopCard ? _dragOffset : Offset(0, translateY);
           final double angle = isTopCard ? _dragAngle : 0.0;
@@ -207,11 +222,13 @@ class _SbInteractiveCardStackState extends State<SbInteractiveCardStack> with Si
                     borderRadius: BorderRadius.circular(SBRadius.xl),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1 + (isTopCard ? 0.1 : 0.0)),
+                        color: Colors.black.withValues(
+                          alpha: 0.1 + (isTopCard ? 0.1 : 0.0),
+                        ),
                         blurRadius: isTopCard && _isDragging ? 20 : 10,
                         spreadRadius: 1,
                         offset: Offset(0, isTopCard && _isDragging ? 10 : 5),
-                      )
+                      ),
                     ],
                   ),
                   child: ClipRRect(
