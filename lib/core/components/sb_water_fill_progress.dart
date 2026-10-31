@@ -82,7 +82,9 @@ class _SbWaterFillProgressState extends State<SbWaterFillProgress> with SingleTi
             
             // Percentage Text
             Text(
-              '${(widget.progress * 100).toInt()}%',
+              // toInt() truncates, so a 0.29 fill printed 28% beside a bar
+              // drawn at 29%, and an out-of-range progress printed 120%.
+              '${(widget.progress.clamp(0.0, 1.0) * 100).round()}%',
               style: style,
             ),
           ],
