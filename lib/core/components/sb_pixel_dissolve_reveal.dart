@@ -184,10 +184,11 @@ class _SbPixelDissolveRevealState extends State<SbPixelDissolveReveal>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final Size size = constraints.biggest;
-          final int cols = math.max(
-              1, (size.width / widget.pixelSize).ceil());
-          final int rows = math.max(
-              1, (size.height / widget.pixelSize).ceil());
+          // A zero pixel size divided to Infinity, and Infinity.ceil() throws;
+          // a near-zero one would ask for millions of tiles instead.
+          final double pixel = math.max(1.0, widget.pixelSize);
+          final int cols = math.max(1, (size.width / pixel).ceil());
+          final int rows = math.max(1, (size.height / pixel).ceil());
           return AnimatedBuilder(
             animation: _controller,
             child: widget.child,
