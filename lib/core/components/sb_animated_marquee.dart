@@ -59,8 +59,12 @@ class _SbAnimatedMarqueeState extends State<SbAnimatedMarquee> with SingleTicker
     if (!mounted) return;
 
     final maxScrollExtent = _scrollController.position.maxScrollExtent;
+    // A zero velocity divided to Infinity, and Duration's constructor throws
+    // on a non-finite inMilliseconds (UnsupportedError inside the async
+    // callback, so nothing rendered).
+    final pixelsPerSecond = widget.velocity <= 0 ? 50.0 : widget.velocity;
     final scrollDuration = Duration(
-      milliseconds: ((maxScrollExtent / widget.velocity) * 1000).toInt()
+      milliseconds: ((maxScrollExtent / pixelsPerSecond) * 1000).round()
     );
 
     await _scrollController.animateTo(
