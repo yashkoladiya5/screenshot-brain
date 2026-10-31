@@ -91,7 +91,8 @@ class SbSpringChainSlider extends StatefulWidget {
   }) {
     final double kEff = anchorStiffness + couplingStiffness;
     final double c = 2 * dampingRatio * (kEff > 0 ? math.sqrt(kEff) : 0.0);
-    final double a = -anchorStiffness * (p - home) +
+    final double a =
+        -anchorStiffness * (p - home) +
         couplingStiffness * (other - p + couplingBias) -
         c * v;
     final double vn = v + a * dt;
@@ -169,8 +170,7 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
     final bool kinematic2 = _dragged == SbChainThumb.second;
 
     if (!kinematic1) {
-      final ({double p, double v}) s1 =
-          SbSpringChainSlider.integrateThumb(
+      final ({double p, double v}) s1 = SbSpringChainSlider.integrateThumb(
         p: _p1,
         v: _v1,
         home: _home1,
@@ -185,8 +185,7 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
       _v1 = s1.v;
     }
     if (!kinematic2) {
-      final ({double p, double v}) s2 =
-          SbSpringChainSlider.integrateThumb(
+      final ({double p, double v}) s2 = SbSpringChainSlider.integrateThumb(
         p: _p2,
         v: _v2,
         home: _home2,
@@ -218,10 +217,7 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
     }
 
     widget.onRangeChanged?.call(
-      RangeValues(
-        _p1 < _p2 ? _p1 : _p2,
-        _p1 < _p2 ? _p2 : _p1,
-      ),
+      RangeValues(_p1 < _p2 ? _p1 : _p2, _p1 < _p2 ? _p2 : _p1),
     );
     setState(() {});
   }
@@ -231,9 +227,14 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
     // back to track space with the same layout mapping the Stack uses.
     final double hit = widget.thumbRadius * 2.4;
     final double self = which == SbChainThumb.first ? _p1 : _p2;
-    final double boxLeft = (self * widget.width - hit / 2)
-        .clamp(0.0, widget.width - hit);
-    final double f = ((boxLeft + localX) / widget.width).clamp(0.0, 1.0);
+    final double boxLeft = (self * widget.width - hit / 2).clamp(
+      0.0,
+      widget.width - hit,
+    );
+    // Zero width divided to NaN, and clamp lets NaN through unchanged, which
+    // propagated into the spring integration as a permanently broken position.
+    final trackWidth = widget.width <= 0 ? 1.0 : widget.width;
+    final double f = ((boxLeft + localX) / trackWidth).clamp(0.0, 1.0);
     if (which == SbChainThumb.first) {
       _p1 = f;
       _v1 = 0;
@@ -256,10 +257,7 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
     setState(() => _dragged = SbChainThumb.none);
   }
 
-  Widget _thumb({
-    required Key? key,
-    required SbChainThumb which,
-  }) {
+  Widget _thumb({required Key? key, required SbChainThumb which}) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onHorizontalDragStart: (d) => _beginDrag(which, d.localPosition.dx),
@@ -335,7 +333,10 @@ class _SbSpringChainSliderState extends State<SbSpringChainSlider>
           ),
           Positioned(
             left: (cx2 - hit / 2).clamp(0.0, widget.width - hit),
-            child: _thumb(key: widget.rightThumbKey, which: SbChainThumb.second),
+            child: _thumb(
+              key: widget.rightThumbKey,
+              which: SbChainThumb.second,
+            ),
           ),
         ],
       ),
