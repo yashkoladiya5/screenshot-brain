@@ -22,15 +22,18 @@ class _SbAnimatedCardStackState extends State<SbAnimatedCardStack> {
   int _currentIndex = 0;
 
   void _onPanEnd(DragEndDetails details) {
-    if (details.primaryVelocity! < 0) {
-      setState(() {
+    // An empty deck made both modulo expressions divide by zero, and
+    // `primaryVelocity` is nullable — the `!` threw before either branch ran.
+    final velocity = details.primaryVelocity;
+    if (velocity == null || widget.cards.isEmpty) return;
+    setState(() {
+      if (velocity < 0) {
         _currentIndex = (_currentIndex + 1) % widget.cards.length;
-      });
-    } else if (details.primaryVelocity! > 0) {
-      setState(() {
-        _currentIndex = (_currentIndex - 1 + widget.cards.length) % widget.cards.length;
-      });
-    }
+      } else if (velocity > 0) {
+        _currentIndex =
+            (_currentIndex - 1 + widget.cards.length) % widget.cards.length;
+      }
+    });
   }
 
   @override
