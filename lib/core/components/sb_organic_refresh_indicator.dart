@@ -35,7 +35,12 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: (1500 / widget.animSpeedFactor).round()),
+      // animSpeedFactor is public: zero divided to Infinity, whose round()
+      // throws UnsupportedError from initState and took the whole scroll view
+      // down with it.
+      duration: Duration(
+        milliseconds: (1500 / math.max(0.01, widget.animSpeedFactor)).round(),
+      ),
     )..repeat();
 
     _pullController = AnimationController(
