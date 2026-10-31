@@ -65,9 +65,12 @@ class _SbCursorMagnetState extends State<SbCursorMagnet>
     final double dx = localPosition.dx - center.dx;
     final double dy = localPosition.dy - center.dy;
 
-    // Calculate percentage based on detection radius
-    double percentX = (dx / widget.detectionRadius).clamp(-1.0, 1.0);
-    double percentY = (dy / widget.detectionRadius).clamp(-1.0, 1.0);
+    // Calculate percentage based on detection radius. A zero radius (the
+    // obvious way to disable the pull) divided to NaN, and clamp passes NaN
+    // straight through, so the child was translated by NaN pixels.
+    final radius = widget.detectionRadius <= 0 ? 1.0 : widget.detectionRadius;
+    double percentX = (dx / radius).clamp(-1.0, 1.0);
+    double percentY = (dy / radius).clamp(-1.0, 1.0);
 
     setState(() {
       _magneticOffset = Offset(
