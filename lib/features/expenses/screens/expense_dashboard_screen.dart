@@ -188,7 +188,12 @@ class _ExpenseDashboardScreenState
       );
     }
     final sorted = categories.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+      // Tie-break on the label: List.sort is not stable, so two categories
+      // with equal spend swapped rows between rebuilds.
+      ..sort((a, b) {
+        final byTotal = b.value.compareTo(a.value);
+        return byTotal != 0 ? byTotal : a.key.compareTo(b.key);
+      });
     return SbCard(
       child: Column(
         children: sorted.map((entry) {
