@@ -181,7 +181,9 @@ class _LiquidNavPainter extends CustomPainter {
       ..strokeWidth = 3
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
-    final itemWidth = size.width / itemCount;
+    // A nav with no items divided by zero: itemWidth went Infinity, the dip's
+    // bezier control points became NaN and Canvas threw mid-paint.
+    final itemWidth = itemCount == 0 ? size.width : size.width / itemCount;
     // The exact X center of the currently selected item
     final centerX = (itemWidth * currentIndex) + (itemWidth / 2);
     
