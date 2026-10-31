@@ -123,7 +123,9 @@ class _SbInertiaWheelPickerState extends State<SbInertiaWheelPicker>
   }
 
   void _emitSelectionIfNeeded() {
-    final int idx = _position.round().clamp(0, widget.items.length - 1);
+    // An empty wheel makes the upper bound -1, and clamp asserts min <= max.
+    final int upper = math.max(0, widget.items.length - 1);
+    final int idx = _position.round().clamp(0, upper);
     if (idx != _selectedIndex) {
       _selectedIndex = idx;
       widget.onSelectionChanged?.call(idx);
@@ -216,10 +218,8 @@ class _SbInertiaWheelPickerState extends State<SbInertiaWheelPicker>
         ? _SbWheelPhase.settle
         : _SbWheelPhase.ballistic;
     if (_phase == _SbWheelPhase.settle) {
-      _settleTarget = _position
-          .round()
-          .clamp(0, widget.items.length - 1)
-          .toDouble();
+      final int upper = math.max(0, widget.items.length - 1);
+      _settleTarget = _position.round().clamp(0, upper).toDouble();
     }
     _startTicker();
   }
