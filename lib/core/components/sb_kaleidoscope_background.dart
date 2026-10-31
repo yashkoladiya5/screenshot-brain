@@ -30,7 +30,11 @@ class _SbKaleidoscopeBackgroundState extends State<SbKaleidoscopeBackground> wit
     // We want a very slow, continuous rotation
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(seconds: (20 / widget.animationSpeed).round()),
+      // A zero speed divided to Infinity, whose round() throws straight out of
+      // initState and left the screen on a red error widget.
+      duration: Duration(
+        seconds: (20 / math.max(0.01, widget.animationSpeed)).round(),
+      ),
     )..repeat();
   }
 
