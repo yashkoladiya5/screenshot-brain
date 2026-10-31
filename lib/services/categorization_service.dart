@@ -200,11 +200,19 @@ class CategorizationService {
   /// Apostrophe residue that OCR glues onto word edges is stripped so quoted
   /// or possessive keywords still match (`'otp'` -> `otp`, `amazon's` ->
   /// `amazon`, `users'` -> `users`).
+  ///
+  /// Compiled once: [tokenize] runs for every keyword of every category on
+  /// every screenshot, and a per-call pattern compile dominated that loop.
+  static final RegExp _tokenRe = RegExp(
+    r"[\p{L}\p{N}']+",
+    unicode: true,
+  );
+
+  /// Splitter for multi-word keywords in [weightedScore].
+  static final RegExp _phraseSpaceRe = RegExp(r'\s+');
+
   static List<String> tokenize(String text) {
-    final matches = RegExp(
-      r"[\p{L}\p{N}']+",
-      unicode: true,
-    ).allMatches(text.toLowerCase());
+    final matches = _tokenRe.allMatches(text.toLowerCase());
     final tokens = <String>[];
     for (final match in matches) {
       final token = _stripEdgeApostrophes(match[0]!);
@@ -241,7 +249,7 @@ class CategorizationService {
     for (final entry in keywords.entries) {
       final phrase = entry.key
           .toLowerCase()
-          .split(RegExp(r'\s+'))
+          .split(_phraseSpaceRe)
           .where((t) => t.isNotEmpty)
           .toList();
       if (phrase.isEmpty) continue;
