@@ -142,8 +142,11 @@ class _SbFileUploadZoneState extends State<SbFileUploadZone> with SingleTickerPr
                   ),
                   const SizedBox(height: SBSpacing.xs),
                   Text(
-                    widget.isUploading 
-                        ? '${(widget.uploadProgress * 100).toInt()}% complete'
+                    widget.isUploading
+                        // Rounds against a clamped fraction: truncating showed
+                        // '34% complete' under a 35% bar, and a progress above
+                        // 1.0 rendered as '120% complete'.
+                        ? '${(widget.uploadProgress.clamp(0.0, 1.0) * 100).round()}% complete'
                         : widget.subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
