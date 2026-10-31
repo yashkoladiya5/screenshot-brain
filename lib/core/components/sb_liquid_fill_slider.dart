@@ -51,7 +51,10 @@ class _SbLiquidFillSliderState extends State<SbLiquidFillSlider>
 
   void _updateValueFromPosition(Offset localPosition) {
     setState(() {
-      _value = (localPosition.dx / widget.width).clamp(0.0, 1.0);
+      // A zero width made this 0/0, and clamp passes NaN straight through,
+      // so the fill level was set to NaN instead of clamping to a number.
+      final trackWidth = widget.width <= 0 ? 1.0 : widget.width;
+      _value = (localPosition.dx / trackWidth).clamp(0.0, 1.0);
       if (widget.onChanged != null) {
         widget.onChanged!(_value);
       }
