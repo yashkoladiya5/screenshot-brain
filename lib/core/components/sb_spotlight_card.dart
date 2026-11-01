@@ -112,15 +112,18 @@ class _SbSpotlightCardState extends State<SbSpotlightCard>
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: RadialGradient(
+                            // A collapsed card (zero width or height) made this
+                            // 0/0, and clamp passes NaN through, which the
+                            // Alignment behind FractionalOffset rejects.
                             center: FractionalOffset(
-                              (_pointerPosition.dx / widget.width).clamp(
-                                0.0,
-                                1.0,
-                              ),
-                              (_pointerPosition.dy / widget.height).clamp(
-                                0.0,
-                                1.0,
-                              ),
+                              (_pointerPosition.dx /
+                                      (widget.width <= 0 ? 1.0 : widget.width))
+                                  .clamp(0.0, 1.0),
+                              (_pointerPosition.dy /
+                                      (widget.height <= 0
+                                          ? 1.0
+                                          : widget.height))
+                                  .clamp(0.0, 1.0),
                             ),
                             radius: 1.5,
                             colors: [widget.spotlightColor, Colors.transparent],
