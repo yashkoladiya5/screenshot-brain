@@ -20,13 +20,20 @@ class SbDatePickerButton extends StatelessWidget {
 
   Future<void> _pickDate(BuildContext context) async {
     final now = DateTime.now();
-    final initialDate = selectedDate ?? now;
-    
+    final first = firstDate ?? DateTime(now.year - 5);
+    final last = lastDate ?? DateTime(now.year + 5);
+    // showDatePicker asserts that initialDate lies inside firstDate..lastDate.
+    // A stored date outside the window - any expense older than the default
+    // five-year span - therefore threw the moment the button was tapped.
+    var initialDate = selectedDate ?? now;
+    if (initialDate.isBefore(first)) initialDate = first;
+    if (initialDate.isAfter(last)) initialDate = last;
+
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: firstDate ?? DateTime(now.year - 5),
-      lastDate: lastDate ?? DateTime(now.year + 5),
+      firstDate: first,
+      lastDate: last,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -48,14 +55,17 @@ class SbDatePickerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     final hasDate = selectedDate != null;
 
     return InkWell(
       onTap: () => _pickDate(context),
       borderRadius: BorderRadius.circular(SBRadius.md),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: SBSpacing.md, vertical: SBSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: SBSpacing.md,
+          vertical: SBSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(SBRadius.md),
@@ -67,13 +77,19 @@ class SbDatePickerButton extends StatelessWidget {
             Icon(
               Icons.calendar_month_rounded,
               size: 20,
-              color: hasDate ? colorScheme.primary : colorScheme.onSurfaceVariant,
+              color: hasDate
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: SBSpacing.sm),
             Text(
-              hasDate ? DateFormat('MMM d, yyyy').format(selectedDate!) : placeholder,
+              hasDate
+                  ? DateFormat('MMM d, yyyy').format(selectedDate!)
+                  : placeholder,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: hasDate ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+                color: hasDate
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
                 fontWeight: hasDate ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
