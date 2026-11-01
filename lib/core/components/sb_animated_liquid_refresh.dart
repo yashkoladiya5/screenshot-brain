@@ -16,10 +16,12 @@ class SbAnimatedLiquidRefresh extends StatefulWidget {
   });
 
   @override
-  State<SbAnimatedLiquidRefresh> createState() => _SbAnimatedLiquidRefreshState();
+  State<SbAnimatedLiquidRefresh> createState() =>
+      _SbAnimatedLiquidRefreshState();
 }
 
-class _SbAnimatedLiquidRefreshState extends State<SbAnimatedLiquidRefresh> with SingleTickerProviderStateMixin {
+class _SbAnimatedLiquidRefreshState extends State<SbAnimatedLiquidRefresh>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   double _dragOffset = 0.0;
   bool _isRefreshing = false;
@@ -66,11 +68,11 @@ class _SbAnimatedLiquidRefreshState extends State<SbAnimatedLiquidRefresh> with 
       _isRefreshing = true;
       _dragOffset = _maxDrag * 0.5;
     });
-    
+
     _controller.repeat();
-    
+
     await widget.onRefresh();
-    
+
     if (mounted) {
       _controller.stop();
       setState(() {
@@ -89,7 +91,7 @@ class _SbAnimatedLiquidRefreshState extends State<SbAnimatedLiquidRefresh> with 
           width: double.infinity,
           height: double.infinity,
         ),
-        
+
         if (_dragOffset > 0 || _isRefreshing)
           AnimatedBuilder(
             animation: _controller,
@@ -105,16 +107,18 @@ class _SbAnimatedLiquidRefreshState extends State<SbAnimatedLiquidRefresh> with 
                   height: _dragOffset,
                   width: double.infinity,
                   child: Center(
-                    child: _isRefreshing 
-                        ? const CircularProgressIndicator(color: Colors.white) 
+                    child: _isRefreshing
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : Icon(
-                            Icons.arrow_downward, 
-                            color: Colors.white.withValues(alpha: (_dragOffset / _maxDrag).clamp(0.0, 1.0)),
+                            Icons.arrow_downward,
+                            color: Colors.white.withValues(
+                              alpha: (_dragOffset / _maxDrag).clamp(0.0, 1.0),
+                            ),
                           ),
                   ),
                 ),
               );
-            }
+            },
           ),
 
         NotificationListener<ScrollNotification>(
@@ -153,15 +157,24 @@ class _LiquidPainter extends CustomPainter {
     path.lineTo(0, dragOffset * 0.5);
 
     if (isRefreshing) {
+      // A zero-width header still samples i = 0, so the wave argument was
+      // 0/0 NaN and the path was rejected before it could paint.
+      final double waveSpan = size.width <= 0 ? 1.0 : size.width;
       for (double i = 0; i <= size.width; i++) {
-        final wave = math.sin((i / size.width * 2 * math.pi) + (animationValue * 2 * math.pi)) * 10;
+        final wave =
+            math.sin(
+              (i / waveSpan * 2 * math.pi) + (animationValue * 2 * math.pi),
+            ) *
+            10;
         path.lineTo(i, (dragOffset * 0.5) + wave);
       }
     } else {
       final double stretch = dragOffset * 0.5;
       path.quadraticBezierTo(
-        size.width / 2, dragOffset * 0.5 + stretch, 
-        size.width, dragOffset * 0.5
+        size.width / 2,
+        dragOffset * 0.5 + stretch,
+        size.width,
+        dragOffset * 0.5,
       );
     }
 
@@ -173,8 +186,8 @@ class _LiquidPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LiquidPainter oldDelegate) {
-    return oldDelegate.dragOffset != dragOffset || 
-           oldDelegate.animationValue != animationValue ||
-           oldDelegate.isRefreshing != isRefreshing;
+    return oldDelegate.dragOffset != dragOffset ||
+        oldDelegate.animationValue != animationValue ||
+        oldDelegate.isRefreshing != isRefreshing;
   }
 }
