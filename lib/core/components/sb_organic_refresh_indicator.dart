@@ -213,15 +213,18 @@ class _LiquidWavePainter extends CustomPainter {
     final path = Path();
     path.moveTo(0, 0);
 
+    // Same zero-width sample as the other wave painters: i = 0 divided by a
+    // zero width is NaN, and the wave height multiplied by NaN stays NaN.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double i = 0; i <= size.width; i++) {
       final wave1 =
           math.sin(
-            (i / size.width * 2 * math.pi) + (animationValue * 2 * math.pi),
+            (i / waveSpan * 2 * math.pi) + (animationValue * 2 * math.pi),
           ) *
           waveHeight;
       final wave2 =
           math.cos(
-            (i / size.width * 3 * math.pi) + (animationValue * 4 * math.pi),
+            (i / waveSpan * 3 * math.pi) + (animationValue * 4 * math.pi),
           ) *
           (waveHeight * 0.5);
 
