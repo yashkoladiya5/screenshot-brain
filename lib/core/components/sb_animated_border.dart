@@ -29,22 +29,34 @@ class SbAnimatedBorder extends StatefulWidget {
   State<SbAnimatedBorder> createState() => _SbAnimatedBorderState();
 }
 
-class _SbAnimatedBorderState extends State<SbAnimatedBorder> with SingleTickerProviderStateMixin {
+class _SbAnimatedBorderState extends State<SbAnimatedBorder>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant SbAnimatedBorder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // An AnimationController reads its duration only when a cycle starts, and
+    // repeat() was called with the value captured in initState, so a caller
+    // that changed the speed afterwards kept getting the original rotation
+    // rate for as long as the widget lived.
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+      _controller.repeat();
+    }
   }
 
   @override
@@ -72,7 +84,9 @@ class _SbAnimatedBorderState extends State<SbAnimatedBorder> with SingleTickerPr
               decoration: BoxDecoration(
                 color: bg,
                 // Adjust inner radius slightly to avoid clipping artifacts
-                borderRadius: BorderRadius.circular(math.max(0, widget.borderRadius - widget.borderWidth)),
+                borderRadius: BorderRadius.circular(
+                  math.max(0, widget.borderRadius - widget.borderWidth),
+                ),
               ),
               child: widget.child,
             ),
