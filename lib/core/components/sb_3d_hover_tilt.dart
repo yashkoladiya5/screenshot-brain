@@ -53,8 +53,13 @@ class _Sb3DHoverTiltState extends State<Sb3DHoverTilt>
     final size = renderBox.size;
     final localPosition = renderBox.globalToLocal(event.position);
 
-    final double normalizedX = (localPosition.dx / size.width) * 2 - 1;
-    final double normalizedY = (localPosition.dy / size.height) * 2 - 1;
+    // A box measured at zero width or height (a collapsed parent) divided to
+    // NaN, and NaN multiplied by maxTilt is still NaN, so the transform
+    // matrix was built from NaN entries.
+    final double normalizedX =
+        (localPosition.dx / (size.width <= 0 ? 1.0 : size.width)) * 2 - 1;
+    final double normalizedY =
+        (localPosition.dy / (size.height <= 0 ? 1.0 : size.height)) * 2 - 1;
 
     setState(() {
       _tilt = Offset(
