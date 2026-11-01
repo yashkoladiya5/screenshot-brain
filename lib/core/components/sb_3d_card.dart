@@ -173,15 +173,20 @@ class _Sb3DCardState extends State<Sb3DCard>
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: RadialGradient(
+                              // Same floor as the tilt maths above: a zero-size
+                              // card must keep the highlight centred, not send
+                              // NaN into the gradient's Alignment.
                               center: FractionalOffset(
-                                (activePosition.dx / widget.width).clamp(
-                                  0.0,
-                                  1.0,
-                                ),
-                                (activePosition.dy / widget.height).clamp(
-                                  0.0,
-                                  1.0,
-                                ),
+                                (activePosition.dx /
+                                        (widget.width <= 0
+                                            ? 1.0
+                                            : widget.width))
+                                    .clamp(0.0, 1.0),
+                                (activePosition.dy /
+                                        (widget.height <= 0
+                                            ? 1.0
+                                            : widget.height))
+                                    .clamp(0.0, 1.0),
                               ),
                               radius: 1.0,
                               colors: [
