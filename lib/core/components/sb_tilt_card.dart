@@ -63,9 +63,13 @@ class _SbTiltCardState extends State<SbTiltCard>
     final size = renderBox.size;
     final localPosition = renderBox.globalToLocal(event.position);
 
-    // Normalize coordinates to -1.0 to 1.0 (center is 0,0)
-    final double normalizedX = (localPosition.dx / size.width) * 2 - 1;
-    final double normalizedY = (localPosition.dy / size.height) * 2 - 1;
+    // Normalize coordinates to -1.0 to 1.0 (center is 0,0). A box laid out
+    // with zero width or height made that 0/0, and the NaN reached the tilt
+    // matrix, which blanked the card out for the rest of the session.
+    final double normalizedX =
+        (localPosition.dx / (size.width <= 0 ? 1.0 : size.width)) * 2 - 1;
+    final double normalizedY =
+        (localPosition.dy / (size.height <= 0 ? 1.0 : size.height)) * 2 - 1;
 
     setState(() {
       _tiltOffset = Offset(normalizedX, normalizedY);
