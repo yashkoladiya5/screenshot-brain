@@ -95,10 +95,8 @@ class SbLissajousPlotter extends StatefulWidget {
     required double amplitudeFactor,
   }) {
     final double amp = size * amplitudeFactor;
-    final double dx =
-        amp * math.exp(-decayX * t) * math.sin(freqX * t + phase);
-    final double dy =
-        amp * math.exp(-decayY * t) * math.sin(freqY * t);
+    final double dx = amp * math.exp(-decayX * t) * math.sin(freqX * t + phase);
+    final double dy = amp * math.exp(-decayY * t) * math.sin(freqY * t);
     return Offset(size / 2 + dx, size / 2 + dy);
   }
 
@@ -140,15 +138,15 @@ class _SbLissajousPlotterState extends State<SbLissajousPlotter>
   }
 
   Offset _penAt(double t) => SbLissajousPlotter.penAt(
-        t: t,
-        size: widget.size,
-        freqX: widget.freqX,
-        freqY: widget.freqY,
-        phase: _phase,
-        decayX: widget.decayX,
-        decayY: widget.decayY,
-        amplitudeFactor: widget.amplitudeFactor,
-      );
+    t: t,
+    size: widget.size,
+    freqX: widget.freqX,
+    freqY: widget.freqY,
+    phase: _phase,
+    decayX: widget.decayX,
+    decayY: widget.decayY,
+    amplitudeFactor: widget.amplitudeFactor,
+  );
 
   void _onTick(Duration elapsed) {
     double dt = _lastElapsed == Duration.zero
@@ -189,7 +187,12 @@ class _SbLissajousPlotterState extends State<SbLissajousPlotter>
     if (!widget.interactive) return;
     // 2π of phase across the full width, like sliding the pen carriage.
     setState(() {
-      _phase = _phase + d.delta.dx / widget.size * 2 * math.pi;
+      // A zero size (the plot shrunk out of view) divided the drag delta to
+      // NaN, and the curve is then sampled from a NaN phase, so drawPath
+      // asserted instead of the plot simply not moving.
+      _phase =
+          _phase +
+          d.delta.dx / (widget.size <= 0 ? 1.0 : widget.size) * 2 * math.pi;
       _lastSampleT = -1e9; // resync sampling to avoid a jump
     });
     widget.onPhaseChanged?.call(_phase);
@@ -267,19 +270,22 @@ class _LissajousPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = backgroundColor,
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..color = backgroundColor);
 
     // Faint centre cross, like the plotter's registration marks.
     final Paint grid = Paint()
       ..color = lineColor.withValues(alpha: 0.10)
       ..strokeWidth = 1.0;
     canvas.drawLine(
-        Offset(size.width / 2, 0), Offset(size.width / 2, size.height), grid);
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      grid,
+    );
     canvas.drawLine(
-        Offset(0, size.height / 2), Offset(size.width, size.height / 2), grid);
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      grid,
+    );
 
     if (trail.length < 2) return;
 
@@ -304,7 +310,6 @@ class _LissajousPainter extends CustomPainter {
     return oldDelegate.trail.length != trail.length ||
         oldDelegate.lineColor != lineColor ||
         oldDelegate.backgroundColor != backgroundColor ||
-        (trail.isNotEmpty &&
-            oldDelegate.trail.last != trail.last);
+        (trail.isNotEmpty && oldDelegate.trail.last != trail.last);
   }
 }
