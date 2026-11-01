@@ -21,9 +21,10 @@ class SbWaterFillProgress extends StatefulWidget {
   State<SbWaterFillProgress> createState() => _SbWaterFillProgressState();
 }
 
-class _SbWaterFillProgressState extends State<SbWaterFillProgress> with SingleTickerProviderStateMixin {
+class _SbWaterFillProgressState extends State<SbWaterFillProgress>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  
+
   @override
   void initState() {
     super.initState();
@@ -42,10 +43,12 @@ class _SbWaterFillProgressState extends State<SbWaterFillProgress> with SingleTi
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = widget.textStyle ?? theme.textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    );
+    final style =
+        widget.textStyle ??
+        theme.textTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        );
 
     return Container(
       width: widget.size,
@@ -58,7 +61,7 @@ class _SbWaterFillProgressState extends State<SbWaterFillProgress> with SingleTi
             color: widget.waterColor.withValues(alpha: 0.3),
             blurRadius: 15,
             spreadRadius: 2,
-          )
+          ),
         ],
       ),
       child: ClipOval(
@@ -79,7 +82,7 @@ class _SbWaterFillProgressState extends State<SbWaterFillProgress> with SingleTi
                 );
               },
             ),
-            
+
             // Percentage Text
             Text(
               // toInt() truncates, so a 0.29 fill printed 28% beside a bar
@@ -108,19 +111,19 @@ class _WaterWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // We will draw two overlapping sine waves to simulate liquid
-    
+
     // Wave parameters
     final double waveHeight = 10.0;
-    
+
     // Map progress (0-1) to Y coordinate (height -> 0)
     final double fillY = size.height - (progress * size.height);
-    
+
     // Draw back wave (lighter, moving slower, offset phase)
     _drawWave(
-      canvas: canvas, 
-      size: size, 
-      fillY: fillY, 
-      waveHeight: waveHeight * 1.2, 
+      canvas: canvas,
+      size: size,
+      fillY: fillY,
+      waveHeight: waveHeight * 1.2,
       phase: (animationValue * 2 * math.pi) + math.pi, // Offset by Pi
       frequency: 1.5,
       color: color.withValues(alpha: 0.5),
@@ -128,16 +131,16 @@ class _WaterWavePainter extends CustomPainter {
 
     // Draw front wave (solid, moving faster)
     _drawWave(
-      canvas: canvas, 
-      size: size, 
-      fillY: fillY, 
-      waveHeight: waveHeight, 
+      canvas: canvas,
+      size: size,
+      fillY: fillY,
+      waveHeight: waveHeight,
       phase: (animationValue * 2 * math.pi * 1.5), // Moves 1.5x faster
       frequency: 2.0,
       color: color,
     );
   }
-  
+
   void _drawWave({
     required Canvas canvas,
     required Size size,
@@ -148,35 +151,39 @@ class _WaterWavePainter extends CustomPainter {
     required Color color,
   }) {
     final Path path = Path();
-    
+
     // Start at bottom left
     path.moveTo(0, size.height);
     // Line to start of wave on the left edge
     path.lineTo(0, fillY);
-    
+
+    // The loop runs its first sample at x = 0 even for a zero-width box, and
+    // 0/0 is NaN - which the filled path then carried into drawPath.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
+
     // Draw the sine wave across the width
     for (double x = 0; x <= size.width; x++) {
       // Normalize X to 0-1, multiply by frequency * 2Pi to get full sine cycles
-      final double normalizedX = (x / size.width) * frequency * 2 * math.pi;
-      
+      final double normalizedX = (x / waveSpan) * frequency * 2 * math.pi;
+
       // Calculate Y using sine function
       // Y = BaseHeight + Sin(X + Phase) * Amplitude
       final double y = fillY + math.sin(normalizedX + phase) * waveHeight;
-      
+
       path.lineTo(x, y);
     }
-    
+
     // Close the path to bottom right and back to bottom left
     path.lineTo(size.width, size.height);
     path.close();
-    
+
     canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
   bool shouldRepaint(covariant _WaterWavePainter oldDelegate) {
-    return oldDelegate.progress != progress || 
-           oldDelegate.animationValue != animationValue ||
-           oldDelegate.color != color;
+    return oldDelegate.progress != progress ||
+        oldDelegate.animationValue != animationValue ||
+        oldDelegate.color != color;
   }
 }
