@@ -21,7 +21,8 @@ class SbWaveAnimation extends StatefulWidget {
   State<SbWaveAnimation> createState() => _SbWaveAnimationState();
 }
 
-class _SbWaveAnimationState extends State<SbWaveAnimation> with SingleTickerProviderStateMixin {
+class _SbWaveAnimationState extends State<SbWaveAnimation>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -95,31 +96,36 @@ class _WavePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    
+
     // Start at bottom left
     path.moveTo(0, size.height);
-    
+
     // Line to top left (starting point of wave)
     path.lineTo(0, size.height - amplitude);
 
-    // Draw the sine wave across the width
+    // Draw the sine wave across the width. The loop samples x = 0 even for a
+    // zero-width box, and 0/0 NaN put a non-finite y on the wave path.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double x = 0; x <= size.width; x++) {
       // Calculate y based on sine function
       // (x / size.width) normalizes x from 0 to 1
       // waveFrequency determines how many full waves fit in the width
       // animationValue shifts the phase for animation
-      final double normalizedX = x / size.width;
+      final double normalizedX = x / waveSpan;
       final double phaseShift = animationValue * math.pi * 2;
-      
-      final double y = size.height - amplitude - 
-          (math.sin((normalizedX * math.pi * 2 * waveFrequency) + phaseShift) * amplitude);
-          
+
+      final double y =
+          size.height -
+          amplitude -
+          (math.sin((normalizedX * math.pi * 2 * waveFrequency) + phaseShift) *
+              amplitude);
+
       path.lineTo(x, y);
     }
 
     // Line to bottom right
     path.lineTo(size.width, size.height);
-    
+
     path.close();
     canvas.drawPath(path, paint);
   }
@@ -127,8 +133,8 @@ class _WavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _WavePainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.color != color ||
-           oldDelegate.amplitude != amplitude ||
-           oldDelegate.waveFrequency != waveFrequency;
+        oldDelegate.color != color ||
+        oldDelegate.amplitude != amplitude ||
+        oldDelegate.waveFrequency != waveFrequency;
   }
 }
