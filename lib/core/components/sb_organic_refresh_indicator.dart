@@ -20,13 +20,15 @@ class SbOrganicRefreshIndicator extends StatefulWidget {
   });
 
   @override
-  State<SbOrganicRefreshIndicator> createState() => _SbOrganicRefreshIndicatorState();
+  State<SbOrganicRefreshIndicator> createState() =>
+      _SbOrganicRefreshIndicatorState();
 }
 
-class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> with TickerProviderStateMixin {
+class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator>
+    with TickerProviderStateMixin {
   late AnimationController _waveController;
   late AnimationController _pullController;
-  
+
   double _pullDistance = 0.0;
   bool _isRefreshing = false;
 
@@ -62,7 +64,10 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
     if (notification is ScrollUpdateNotification) {
       if (notification.metrics.pixels < 0) {
         setState(() {
-          _pullDistance = (notification.metrics.pixels.abs() * 0.5).clamp(0.0, widget.height);
+          _pullDistance = (notification.metrics.pixels.abs() * 0.5).clamp(
+            0.0,
+            widget.height,
+          );
         });
       } else if (_pullDistance > 0) {
         setState(() {
@@ -83,25 +88,26 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
     setState(() {
       _isRefreshing = true;
     });
-    
+
     _pullController.duration = const Duration(milliseconds: 200);
-    
-    final animation = Tween<double>(begin: _pullDistance, end: widget.height).animate(
-      CurvedAnimation(parent: _pullController, curve: Curves.easeOutCubic)
-    );
-    
+
+    final animation = Tween<double>(begin: _pullDistance, end: widget.height)
+        .animate(
+          CurvedAnimation(parent: _pullController, curve: Curves.easeOutCubic),
+        );
+
     animation.addListener(() {
       setState(() {
         _pullDistance = animation.value;
       });
     });
-    
+
     await _pullController.forward(from: 0.0);
-    
+
     await widget.onRefresh();
-    
+
     await _snapBack();
-    
+
     setState(() {
       _isRefreshing = false;
     });
@@ -109,17 +115,17 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
 
   Future<void> _snapBack() async {
     _pullController.duration = const Duration(milliseconds: 400);
-    
+
     final animation = Tween<double>(begin: _pullDistance, end: 0.0).animate(
-      CurvedAnimation(parent: _pullController, curve: Curves.elasticOut)
+      CurvedAnimation(parent: _pullController, curve: Curves.elasticOut),
     );
-    
+
     animation.addListener(() {
       setState(() {
         _pullDistance = animation.value;
       });
     });
-    
+
     await _pullController.forward(from: 0.0);
   }
 
@@ -134,7 +140,7 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
           height: widget.height,
           child: Container(color: widget.backgroundColor),
         ),
-        
+
         Positioned(
           top: 0,
           left: 0,
@@ -147,19 +153,27 @@ class _SbOrganicRefreshIndicatorState extends State<SbOrganicRefreshIndicator> w
                 painter: _LiquidWavePainter(
                   animationValue: _waveController.value,
                   color: widget.liquidColor,
-                  waveHeight: (_pullDistance / widget.height) * 20.0, 
+                  waveHeight:
+                      (_pullDistance /
+                          (widget.height <= 0 ? 1.0 : widget.height)) *
+                      20.0,
                 ),
               );
-            }
+            },
           ),
         ),
-        
+
         if (_pullDistance > 0)
           Positioned(
-            top: (_pullDistance / 2) - 15, 
+            top: (_pullDistance / 2) - 15,
             left: MediaQuery.of(context).size.width / 2 - 15,
             child: Opacity(
-              opacity: (_pullDistance / widget.height).clamp(0.0, 1.0),
+              // A zero height - the obvious way to hide the indicator - divided
+              // the pull distance to NaN, and clamp lets NaN through unchanged,
+              // so Opacity got a NaN value and asserted on every frame.
+              opacity:
+                  (_pullDistance / (widget.height <= 0 ? 1.0 : widget.height))
+                      .clamp(0.0, 1.0),
               child: Transform.rotate(
                 angle: _pullDistance * 0.05,
                 child: const Icon(Icons.refresh, color: Colors.white, size: 30),
@@ -197,16 +211,24 @@ class _LiquidWavePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    path.moveTo(0, 0); 
-    
+    path.moveTo(0, 0);
+
     for (double i = 0; i <= size.width; i++) {
-      final wave1 = math.sin((i / size.width * 2 * math.pi) + (animationValue * 2 * math.pi)) * waveHeight;
-      final wave2 = math.cos((i / size.width * 3 * math.pi) + (animationValue * 4 * math.pi)) * (waveHeight * 0.5);
-      
+      final wave1 =
+          math.sin(
+            (i / size.width * 2 * math.pi) + (animationValue * 2 * math.pi),
+          ) *
+          waveHeight;
+      final wave2 =
+          math.cos(
+            (i / size.width * 3 * math.pi) + (animationValue * 4 * math.pi),
+          ) *
+          (waveHeight * 0.5);
+
       path.lineTo(i, size.height + wave1 + wave2);
     }
-    
-    path.lineTo(size.width, 0); 
+
+    path.lineTo(size.width, 0);
     path.close();
 
     canvas.drawPath(path, paint);
@@ -215,7 +237,7 @@ class _LiquidWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LiquidWavePainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.color != color ||
-           oldDelegate.waveHeight != waveHeight;
+        oldDelegate.color != color ||
+        oldDelegate.waveHeight != waveHeight;
   }
 }
