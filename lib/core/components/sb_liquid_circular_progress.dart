@@ -20,10 +20,12 @@ class SbLiquidCircularProgress extends StatefulWidget {
   });
 
   @override
-  State<SbLiquidCircularProgress> createState() => _SbLiquidCircularProgressState();
+  State<SbLiquidCircularProgress> createState() =>
+      _SbLiquidCircularProgressState();
 }
 
-class _SbLiquidCircularProgressState extends State<SbLiquidCircularProgress> with SingleTickerProviderStateMixin {
+class _SbLiquidCircularProgressState extends State<SbLiquidCircularProgress>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -73,7 +75,7 @@ class _SbLiquidCircularProgressState extends State<SbLiquidCircularProgress> wit
               );
             },
           ),
-          
+
           // The text overlay indicating percentage
           Text(
             // Rounds rather than truncates: 0.29 of fill printed 28 percent
@@ -88,10 +90,10 @@ class _SbLiquidCircularProgressState extends State<SbLiquidCircularProgress> wit
                   color: Colors.black45,
                   blurRadius: 4,
                   offset: Offset(1, 1),
-                )
-              ]
+                ),
+              ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -118,10 +120,10 @@ class _LiquidCirclePainter extends CustomPainter {
     // Y coordinate of the water level (0 is top, size.height is bottom)
     // So if progress is 1.0, water level is 0. If progress is 0.0, water level is size.height.
     final waterLevel = size.height - (size.height * progress);
-    
+
     // If empty, draw nothing
     if (progress <= 0.0) return;
-    
+
     // If completely full, just draw a rect (which will be clipped to circle by parent)
     if (progress >= 1.0) {
       canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
@@ -129,25 +131,35 @@ class _LiquidCirclePainter extends CustomPainter {
     }
 
     final path = Path();
-    
+
     // Start at bottom left of the water level
     path.moveTo(0, size.height);
     path.lineTo(0, waterLevel);
-    
-    // Draw the wavy top
+
+    // Draw the wavy top. A zero-width ring still samples i = 0, so both sine
+    // arguments were 0/0 NaN and the water path could not be drawn.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double i = 0; i <= size.width; i++) {
       // The wave height
       final waveHeight = size.height * 0.05;
-      
+
       // Calculate two sine waves and combine them for a more organic sloshing effect
       // Wave 1
-      final wave1 = math.sin((i / size.width * 2 * math.pi) + (animationValue * 2 * math.pi)) * waveHeight;
+      final wave1 =
+          math.sin(
+            (i / waveSpan * 2 * math.pi) + (animationValue * 2 * math.pi),
+          ) *
+          waveHeight;
       // Wave 2 (faster, different phase)
-      final wave2 = math.cos((i / size.width * 3 * math.pi) + (animationValue * 4 * math.pi)) * (waveHeight * 0.5);
-      
+      final wave2 =
+          math.cos(
+            (i / waveSpan * 3 * math.pi) + (animationValue * 4 * math.pi),
+          ) *
+          (waveHeight * 0.5);
+
       path.lineTo(i, waterLevel + wave1 + wave2);
     }
-    
+
     // Finish path at bottom right
     path.lineTo(size.width, size.height);
     path.close();
@@ -157,8 +169,8 @@ class _LiquidCirclePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LiquidCirclePainter oldDelegate) {
-    return oldDelegate.progress != progress || 
-           oldDelegate.animationValue != animationValue ||
-           oldDelegate.liquidColor != liquidColor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.animationValue != animationValue ||
+        oldDelegate.liquidColor != liquidColor;
   }
 }
