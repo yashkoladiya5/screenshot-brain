@@ -324,12 +324,15 @@ class _LiquidFillPainter extends CustomPainter {
       20.0,
     );
 
-    // Draw the wavy edge from top to bottom
+    // Draw the wavy edge from top to bottom. A zero-height track still
+    // samples y = 0, so the sine argument was 0/0 NaN and the edge path
+    // carried a non-finite point into drawPath.
+    final double waveSpan = size.height <= 0 ? 1.0 : size.height;
     for (double y = 0; y <= size.height; y++) {
       // We map Y to a sine wave.
       // time * math.pi * 2 makes it continuously scroll.
       final double wave = math.sin(
-        (y / size.height * math.pi * 2) + (time * math.pi * 2) + phaseOffset,
+        (y / waveSpan * math.pi * 2) + (time * math.pi * 2) + phaseOffset,
       );
 
       final double x = fillWidth + (wave * dynamicAmplitude);
