@@ -60,7 +60,7 @@ class _SbInteractiveGridState extends State<SbInteractiveGrid> {
                   highlightColor: widget.highlightColor,
                 ),
               ),
-              
+
               // Optional child content on top of grid
               if (widget.child != null) widget.child!,
             ],
@@ -86,6 +86,13 @@ class _GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // A zero (or negative) gridSize never advanced these loops: `x += 0` with
+    // `x <= size.width` is an endless increment on the raster thread, which
+    // freezes the whole app rather than just this widget. Later snapping maths
+    // also divided by the same knob, and NaN.floor() throws. An unresolvable
+    // grid is drawn as no grid.
+    if (gridSize <= 0) return;
+
     // 1. Draw the base grid
     final Paint baseGridPaint = Paint()
       ..color = gridColor
@@ -111,78 +118,105 @@ class _GridPainter extends CustomPainter {
     // 2. Draw the highlight overlay grid
     // We only draw the lines that are close to the pointer to save performance
     // and create a glowing intersection effect
-    
+
     final Paint highlightPaint = Paint()
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       // We use a shader so the highlight fades out smoothly from the exact pointer center
-      ..shader = RadialGradient(
-        colors: [
-          highlightColor,
-          highlightColor.withValues(alpha: 0.5),
-          highlightColor.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.4, 1.0],
-      ).createShader(Rect.fromCircle(center: pointerPosition, radius: gridSize * 3));
+      ..shader =
+          RadialGradient(
+            colors: [
+              highlightColor,
+              highlightColor.withValues(alpha: 0.5),
+              highlightColor.withValues(alpha: 0.0),
+            ],
+            stops: const [0.0, 0.4, 1.0],
+          ).createShader(
+            Rect.fromCircle(center: pointerPosition, radius: gridSize * 3),
+          );
 
     final Path highlightPath = Path();
-    
+
     // Only calculate lines within a certain radius of the pointer
     final double effectRadius = gridSize * 4;
-    
+
     // Vertical highlight lines
-    final double startX = (pointerPosition.dx - effectRadius).clamp(0, size.width);
-    final double endX = (pointerPosition.dx + effectRadius).clamp(0, size.width);
-    
+    final double startX = (pointerPosition.dx - effectRadius).clamp(
+      0,
+      size.width,
+    );
+    final double endX = (pointerPosition.dx + effectRadius).clamp(
+      0,
+      size.width,
+    );
+
     // Snap to nearest grid line
     final double snappedStartX = (startX / gridSize).floor() * gridSize;
-    
+
     for (double x = snappedStartX; x <= endX; x += gridSize) {
-      highlightPath.moveTo(x, (pointerPosition.dy - effectRadius).clamp(0, size.height));
-      highlightPath.lineTo(x, (pointerPosition.dy + effectRadius).clamp(0, size.height));
+      highlightPath.moveTo(
+        x,
+        (pointerPosition.dy - effectRadius).clamp(0, size.height),
+      );
+      highlightPath.lineTo(
+        x,
+        (pointerPosition.dy + effectRadius).clamp(0, size.height),
+      );
     }
 
     // Horizontal highlight lines
-    final double startY = (pointerPosition.dy - effectRadius).clamp(0, size.height);
-    final double endY = (pointerPosition.dy + effectRadius).clamp(0, size.height);
-    
+    final double startY = (pointerPosition.dy - effectRadius).clamp(
+      0,
+      size.height,
+    );
+    final double endY = (pointerPosition.dy + effectRadius).clamp(
+      0,
+      size.height,
+    );
+
     final double snappedStartY = (startY / gridSize).floor() * gridSize;
-    
+
     for (double y = snappedStartY; y <= endY; y += gridSize) {
-      highlightPath.moveTo((pointerPosition.dx - effectRadius).clamp(0, size.width), y);
-      highlightPath.lineTo((pointerPosition.dx + effectRadius).clamp(0, size.width), y);
+      highlightPath.moveTo(
+        (pointerPosition.dx - effectRadius).clamp(0, size.width),
+        y,
+      );
+      highlightPath.lineTo(
+        (pointerPosition.dx + effectRadius).clamp(0, size.width),
+        y,
+      );
     }
 
     // Draw the glowing intersection lines
     canvas.drawPath(highlightPath, highlightPaint);
-    
+
     // Draw a small bright node exactly at the nearest intersection point
     final double nearestX = (pointerPosition.dx / gridSize).round() * gridSize;
     final double nearestY = (pointerPosition.dy / gridSize).round() * gridSize;
-    
+
     // Only draw the node if we are actually hovering over the canvas
     if (pointerPosition.dx >= 0 && pointerPosition.dy >= 0) {
       final Paint nodePaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.fill;
-        
+
       canvas.drawCircle(Offset(nearestX, nearestY), 3.0, nodePaint);
-      
+
       final Paint glowPaint = Paint()
         ..color = highlightColor.withValues(alpha: 0.6)
         ..style = PaintingStyle.fill
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
-        
+
       canvas.drawCircle(Offset(nearestX, nearestY), 8.0, glowPaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _GridPainter oldDelegate) {
-    return oldDelegate.pointerPosition != pointerPosition || 
-           oldDelegate.gridSize != gridSize || 
-           oldDelegate.gridColor != gridColor ||
-           oldDelegate.highlightColor != highlightColor;
+    return oldDelegate.pointerPosition != pointerPosition ||
+        oldDelegate.gridSize != gridSize ||
+        oldDelegate.gridColor != gridColor ||
+        oldDelegate.highlightColor != highlightColor;
   }
 }
