@@ -18,10 +18,12 @@ class SbAnimatedWaveBackground extends StatefulWidget {
   });
 
   @override
-  State<SbAnimatedWaveBackground> createState() => _SbAnimatedWaveBackgroundState();
+  State<SbAnimatedWaveBackground> createState() =>
+      _SbAnimatedWaveBackgroundState();
 }
 
-class _SbAnimatedWaveBackgroundState extends State<SbAnimatedWaveBackground> with SingleTickerProviderStateMixin {
+class _SbAnimatedWaveBackgroundState extends State<SbAnimatedWaveBackground>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -44,10 +46,8 @@ class _SbAnimatedWaveBackgroundState extends State<SbAnimatedWaveBackground> wit
     return Stack(
       children: [
         // Base Background Color
-        Positioned.fill(
-          child: Container(color: widget.backgroundColor),
-        ),
-        
+        Positioned.fill(child: Container(color: widget.backgroundColor)),
+
         // Multi-layered waves
         ...List.generate(widget.waveColors.length, (index) {
           return Positioned(
@@ -75,9 +75,7 @@ class _SbAnimatedWaveBackgroundState extends State<SbAnimatedWaveBackground> wit
         }),
 
         // Content
-        Positioned.fill(
-          child: widget.child,
-        ),
+        Positioned.fill(child: widget.child),
       ],
     );
   }
@@ -104,27 +102,36 @@ class _WavePainter extends CustomPainter {
 
     final path = Path();
     path.moveTo(0, size.height); // Start bottom left
-    
+
     // We draw the wave at the top of this container
     // The wave uses two combined sine waves to make it look organic rather than mathematical
+    // The loop always samples i = 0, so a zero-width band divided 0/0 and the
+    // NaN sample was carried into the closed path.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double i = 0; i <= size.width; i++) {
       // Base wave
-      final double normalizedX = (i / size.width);
-      
+      final double normalizedX = (i / waveSpan);
+
       // We calculate time based on the animation value plus the offset for this specific layer
       final double time = (animationValue + layerOffset) * 2 * math.pi;
-      
+
       // Wave 1: The main slow rolling wave
-      final double wave1 = math.sin((normalizedX * 2 * math.pi * frequencyModulator) + time) * 15.0;
-      
+      final double wave1 =
+          math.sin((normalizedX * 2 * math.pi * frequencyModulator) + time) *
+          15.0;
+
       // Wave 2: A faster, smaller wave added to wave 1 to create turbulence
-      final double wave2 = math.cos((normalizedX * 3 * math.pi * frequencyModulator) - (time * 1.5)) * 8.0;
-      
+      final double wave2 =
+          math.cos(
+            (normalizedX * 3 * math.pi * frequencyModulator) - (time * 1.5),
+          ) *
+          8.0;
+
       // Y goes down in Flutter, so subtracting wave height pushes the wave UP from the bottom
       // We also start drawing the wave a bit below the top of the container (at 40px)
       path.lineTo(i, 40.0 - wave1 - wave2);
     }
-    
+
     path.lineTo(size.width, size.height); // Drop down to bottom right
     path.close(); // Close path back to bottom left
 
@@ -134,8 +141,8 @@ class _WavePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _WavePainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.color != color ||
-           oldDelegate.layerOffset != layerOffset ||
-           oldDelegate.frequencyModulator != frequencyModulator;
+        oldDelegate.color != color ||
+        oldDelegate.layerOffset != layerOffset ||
+        oldDelegate.frequencyModulator != frequencyModulator;
   }
 }
