@@ -24,10 +24,10 @@ class _SbSpotlightTextState extends State<SbSpotlightText> {
 
   void _onHover(PointerEvent event) {
     if (!mounted) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final localPosition = renderBox.globalToLocal(event.position);
-    
+
     setState(() {
       _mousePosition = localPosition;
     });
@@ -45,17 +45,28 @@ class _SbSpotlightTextState extends State<SbSpotlightText> {
             // When not hovering, show the text normally or slightly dimmed
             // We can just return a solid color shader
             return LinearGradient(
-              colors: [widget.style.color ?? Colors.black, widget.style.color ?? Colors.black],
+              colors: [
+                widget.style.color ?? Colors.black,
+                widget.style.color ?? Colors.black,
+              ],
             ).createShader(bounds);
           }
 
           // Create a radial gradient that acts as a spotlight
+          // A zero-width or zero-height mask still gets this callback, and the
+          // raw divides produced a NaN FractionalOffset and a NaN radius,
+          // which the gradient rejects while resolving it.
+          final double spanX = bounds.width <= 0 ? 1.0 : bounds.width;
+          final double spanY = bounds.height <= 0 ? 1.0 : bounds.height;
           return RadialGradient(
             center: FractionalOffset(
-              _mousePosition.dx / bounds.width,
-              _mousePosition.dy / bounds.height,
+              _mousePosition.dx / spanX,
+              _mousePosition.dy / spanY,
             ),
-            radius: widget.spotlightRadius / bounds.width * 2, // Scale radius relative to width
+            radius:
+                widget.spotlightRadius /
+                spanX *
+                2, // Scale radius relative to width
             colors: [
               widget.spotlightColor,
               widget.spotlightColor.withValues(alpha: 0.2),
