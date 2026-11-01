@@ -212,10 +212,12 @@ class _LiquidPainter extends CustomPainter {
     path.moveTo(0, size.height);
     path.lineTo(0, waterLevel);
 
-    // Draw the wavy surface
+    // Draw the wavy surface. A zero-width button still samples x = 0, and
+    // 0/0 NaN put a non-finite y on the path, which drawPath rejects.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double i = 0; i <= size.width; i++) {
       // 2 * pi for a full sine wave across the width. We use 1.5 waves.
-      final double normalizedX = i / size.width;
+      final double normalizedX = i / waveSpan;
       final double angle =
           (normalizedX * 1.5 * 2 * math.pi) + (phase * 2 * math.pi);
 
