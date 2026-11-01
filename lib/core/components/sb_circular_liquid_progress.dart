@@ -16,10 +16,12 @@ class SbCircularLiquidProgress extends StatefulWidget {
   });
 
   @override
-  State<SbCircularLiquidProgress> createState() => _SbCircularLiquidProgressState();
+  State<SbCircularLiquidProgress> createState() =>
+      _SbCircularLiquidProgressState();
 }
 
-class _SbCircularLiquidProgressState extends State<SbCircularLiquidProgress> with SingleTickerProviderStateMixin {
+class _SbCircularLiquidProgressState extends State<SbCircularLiquidProgress>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -54,8 +56,8 @@ class _SbCircularLiquidProgressState extends State<SbCircularLiquidProgress> wit
             color: widget.waveColor.withValues(alpha: 0.2),
             blurRadius: 10,
             spreadRadius: 2,
-          )
-        ]
+          ),
+        ],
       ),
       child: ClipOval(
         child: AnimatedBuilder(
@@ -89,19 +91,40 @@ class _LiquidPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double fillY = size.height - (size.height * progress.clamp(0.0, 1.0));
-    
+
     final backPaint = Paint()
       ..color = color.withValues(alpha: 0.4)
       ..style = PaintingStyle.fill;
-    _drawWave(canvas, size, backPaint, animationValue * 2 * math.pi, 8.0, fillY);
-    
+    _drawWave(
+      canvas,
+      size,
+      backPaint,
+      animationValue * 2 * math.pi,
+      8.0,
+      fillY,
+    );
+
     final frontPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
-    _drawWave(canvas, size, frontPaint, (animationValue + 0.3) * 2 * math.pi, 12.0, fillY + 2);
+    _drawWave(
+      canvas,
+      size,
+      frontPaint,
+      (animationValue + 0.3) * 2 * math.pi,
+      12.0,
+      fillY + 2,
+    );
   }
-  
-  void _drawWave(Canvas canvas, Size size, Paint paint, double phase, double amplitude, double fillY) {
+
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    Paint paint,
+    double phase,
+    double amplitude,
+    double fillY,
+  ) {
     if (progress == 0) return;
     if (progress == 1) {
       canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
@@ -112,22 +135,25 @@ class _LiquidPainter extends CustomPainter {
     path.moveTo(0, size.height);
     path.lineTo(0, fillY);
 
+    // x = 0 is sampled even when the ring has no width, and 0/0 NaN put a
+    // non-finite y on the wave the canvas then refused to draw.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double x = 0; x <= size.width; x++) {
-      final double normalizedX = (x / size.width) * 2 * math.pi;
+      final double normalizedX = (x / waveSpan) * 2 * math.pi;
       final double y = fillY + math.sin(normalizedX + phase) * amplitude;
       path.lineTo(x, y);
     }
 
     path.lineTo(size.width, size.height);
     path.close();
-    
+
     canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _LiquidPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue || 
-           oldDelegate.progress != progress ||
-           oldDelegate.color != color;
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.progress != progress ||
+        oldDelegate.color != color;
   }
 }
