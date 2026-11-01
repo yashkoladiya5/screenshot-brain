@@ -19,25 +19,37 @@ class SbAnimatedShimmerSkeleton extends StatefulWidget {
   });
 
   @override
-  State<SbAnimatedShimmerSkeleton> createState() => _SbAnimatedShimmerSkeletonState();
+  State<SbAnimatedShimmerSkeleton> createState() =>
+      _SbAnimatedShimmerSkeletonState();
 }
 
-class _SbAnimatedShimmerSkeletonState extends State<SbAnimatedShimmerSkeleton> with SingleTickerProviderStateMixin {
+class _SbAnimatedShimmerSkeletonState extends State<SbAnimatedShimmerSkeleton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant SbAnimatedShimmerSkeleton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The repeating controller holds the duration it was built with, so
+    // changing the shimmer speed later had no effect at all - the skeleton
+    // kept pulsing at the original rate.
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+      _controller.repeat();
+    }
   }
 
   @override
@@ -61,7 +73,9 @@ class _SbAnimatedShimmerSkeletonState extends State<SbAnimatedShimmerSkeleton> w
                 widget.highlightColor,
                 widget.baseColor,
               ],
-              transform: _SlidingGradientTransform(slidePercent: gradientPosition),
+              transform: _SlidingGradientTransform(
+                slidePercent: gradientPosition,
+              ),
             ),
           ),
         );
