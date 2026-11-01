@@ -23,7 +23,8 @@ class SbLiquidButton extends StatefulWidget {
   State<SbLiquidButton> createState() => _SbLiquidButtonState();
 }
 
-class _SbLiquidButtonState extends State<SbLiquidButton> with SingleTickerProviderStateMixin {
+class _SbLiquidButtonState extends State<SbLiquidButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -54,7 +55,7 @@ class _SbLiquidButtonState extends State<SbLiquidButton> with SingleTickerProvid
             children: [
               // Background
               Container(color: widget.baseColor),
-              
+
               // Animated Liquid waves
               AnimatedBuilder(
                 animation: _controller,
@@ -68,7 +69,7 @@ class _SbLiquidButtonState extends State<SbLiquidButton> with SingleTickerProvid
                   );
                 },
               ),
-              
+
               // Text
               Center(
                 child: Text(
@@ -92,10 +93,7 @@ class _LiquidWavePainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _LiquidWavePainter({
-    required this.progress,
-    required this.color,
-  });
+  _LiquidWavePainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -104,22 +102,46 @@ class _LiquidWavePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // Draw two waves overlapping
-    _drawWave(canvas, size, paint, progress * 2 * math.pi, 10.0, size.height * 0.4);
-    
+    _drawWave(
+      canvas,
+      size,
+      paint,
+      progress * 2 * math.pi,
+      10.0,
+      size.height * 0.4,
+    );
+
     final solidPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
-      
-    _drawWave(canvas, size, solidPaint, (progress + 0.5) * 2 * math.pi, 8.0, size.height * 0.5);
+
+    _drawWave(
+      canvas,
+      size,
+      solidPaint,
+      (progress + 0.5) * 2 * math.pi,
+      8.0,
+      size.height * 0.5,
+    );
   }
 
-  void _drawWave(Canvas canvas, Size size, Paint paint, double phase, double amplitude, double fillY) {
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    Paint paint,
+    double phase,
+    double amplitude,
+    double fillY,
+  ) {
     final path = Path();
     path.moveTo(0, size.height);
     path.lineTo(0, fillY);
 
+    // x = 0 is sampled even when the button has no width, and 0/0 is NaN;
+    // the NaN y then travelled into the closed path and threw in drawPath.
+    final double waveSpan = size.width <= 0 ? 1.0 : size.width;
     for (double x = 0; x <= size.width; x++) {
-      final normalizedX = (x / size.width) * 2 * math.pi;
+      final normalizedX = (x / waveSpan) * 2 * math.pi;
       final y = fillY + math.sin(normalizedX + phase) * amplitude;
       path.lineTo(x, y);
     }
